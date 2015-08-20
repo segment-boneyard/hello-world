@@ -1,0 +1,28 @@
+
+machine:
+  python:
+    version: 2.7.3
+  node:
+    version: "0.12"
+  services:
+    - docker
+
+dependencies:
+  pre:
+    - npm config set "//registry.npmjs.org/:_authToken" $NPM_AUTH
+    - pip install awscli
+  override:
+    - npm install
+
+test:
+  override:
+    - make build
+  post:
+    - tar -zcf $CIRCLE_ARTIFACTS/api.tgz .
+
+deployment:
+  deploy:
+    branch: master
+    commands:
+      - aws s3 cp $CIRCLE_ARTIFACTS/api.tgz s3://segmentio/builds/api/$CIRCLE_SHA1.tgz
+      - curl -sLu "$GH_LOGIN:" https://raw.githubusercontent.com/segmentio/scripts/master/circle/docker/build-tag.sh | sh

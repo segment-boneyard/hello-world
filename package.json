@@ -1,0 +1,14 @@
+{
+  "name": "@segment/source-stripe",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@segment/config": "^5.10.2",
+    "@segment/logger": "^3.1.5",
+    "@segment/source": "^0.1.0",
+    "bluebird": "^2.9.34",
+    "change-case": "^2.3.0",
+    "co": "^4.6.0",
+    "commander": "^2.8.1"
+  }
+}
