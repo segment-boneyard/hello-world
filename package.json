@@ -9,6 +9,7 @@
     "bluebird": "^2.9.34",
     "change-case": "^2.3.0",
     "co": "^4.6.0",
+    "co-parallel": "^1.0.0",
     "commander": "^2.8.1"
   }
 }
