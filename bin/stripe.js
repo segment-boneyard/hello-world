@@ -2,7 +2,7 @@ var program = require('commander');
 var Source = require('@segment/source');
 var Stripe = require('../lib');
 var conf = require('@segment/config');
-var log = require('@segment/logger')(conf('logger'), { app: 'root/stripe' });
+var log = require('@segment/logger')(conf('logger'), { app: 'source/stripe' });
 var co = require('co');
 
 /**
@@ -20,7 +20,7 @@ program
  * @type {Object}
  */
 
-var options = { secret: secret };
+var options = { secret: program.secret };
 
 // create the batch
 var source = Source('stripe')
@@ -34,6 +34,7 @@ stats.memory('start'); // take an initial snapshot of memory
 
 // create the data source
 var stripe = Stripe()
+  .stats(stats)
   .logger(log);
 
 // start the pull
