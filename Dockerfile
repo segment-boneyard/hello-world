@@ -1,3 +1,3 @@
-FROM segment/node:v0.12
+FROM segment/sources-node
 COPY . /src
-ENTRYPOINT ["node"]
+CMD ["node", "--harmony", "src/bin/stripe.js"]
