@@ -7,6 +7,5 @@
 ```
 node --harmony bin/stripe.js 
   --secret stripe_secret
-  --writeKey vm2f4l8utib0w73kkwlm
-  --host https://set.segment.com
+  --write-key vm2f4l8utib0w73kkwlm
 ```
