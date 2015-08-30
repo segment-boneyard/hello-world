@@ -1,3 +1,3 @@
 FROM segment/sources-node
 COPY . /src
-CMD ["node", "--harmony", "src/bin/stripe.js"]
+CMD ["/sources", "run", "node", "--harmony", "src/bin/stripe.js"]
