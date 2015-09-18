@@ -9,6 +9,7 @@ var parallel = require('co-parallel');
 var request = require('co-request');
 var defaults = require('defaults');
 var extend = require('extend');
+var retry = require('co-retry');
 
 // command line
 program
@@ -36,8 +37,7 @@ function* fetch(resource) {
   var options = { limit: 100 };
   log.info('starting collection query ..', { collection: resource._collection });
   do {
-    var response = yield request(req(resource._url, options));
-    check(resource._url, response);
+    var response = yield executeWithRetry(resource._url, options);
     var body = response.body;
 
     for (var i = 0; i < body.data.length; i += 1) {
@@ -63,12 +63,30 @@ function* depaginate(body) {
   while (body.has_more) {
     options.starting_after = body.data[body.data.length - 1].id;
     var url = 'https://api.stripe.com' + body.url;
-    var response = yield request(req(url, options));
-    check(url, response);
+    var response = yield executeWithRetry(url, options);
     body = response.body;
     data = data.concat(body.data);
   }
   return data;
+}
+
+// execute the request with a few retries
+function* executeWithRetry(url, options) {
+  return yield retry(execute.bind(null, url, options), { 
+    retries: 5, // retry 5 times
+    interval: 5000, // wait interval first before retrying
+    factor: 2 // multiple interval by factor every response to get backoff
+  });
+}
+
+// execute the request with error handling
+function* execute(url, options) {
+  var response = yield request(req(url, options));
+  if (response.statusCode !== 200) {
+    throw new Error('Bad Stripe response [' + response.statusCode + '] [' 
+      + url + ']: ' + JSON.stringify(response.body));
+  }
+  return response;
 }
 
 // create a new stripe request
@@ -80,14 +98,6 @@ function req(url, options) {
     qs: defaults(options || {}, { limit: 100 }),
     json: true
   };
-}
-
-// check the request status
-function check(url, response) {
-  if (response.statusCode !== 200) {
-    throw new Error('Bad Stripe response [' + response.statusCode + '] [' 
-      + url + ']: ' + JSON.stringify(response.body));
-  }
 }
 
 // start the program
