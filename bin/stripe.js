@@ -9,7 +9,6 @@ var parallel = require('co-parallel');
 var request = require('co-request');
 var defaults = require('defaults');
 var extend = require('extend');
-var retry = require('co-retry');
 
 // command line
 program
@@ -78,6 +77,24 @@ function* executeWithRetry(url, options) {
     factor: 2 // multiple interval by factor every response to get backoff
   });
 }
+
+// retry a function with properties
+// based off co-retry but with logging
+function* retry(fn, options) {
+  var attempts = options.retries + 1;
+  var interval = options.interval;
+  while (true) {
+    try {
+      return yield fn();
+    } catch (err) {
+      log.error(err); // 
+      attempts--;
+      if (!attempts) throw err;
+      yield wait(interval);
+      interval = interval * options.factor;
+    }
+  }
+};
 
 // execute the request with error handling
 function* execute(url, options) {
