@@ -1,4 +1,9 @@
 
+1.0.10 / 2015-09-21
+===================
+
+  * updating segmentio/soruce and adding error logging
+
 1.0.9 / 2015-09-19
 ==================
 
