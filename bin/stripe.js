@@ -9,6 +9,7 @@ var parallel = require('co-parallel');
 var request = require('co-request');
 var defaults = require('defaults');
 var extend = require('extend');
+var wait = require('co-wait');
 
 // command line
 program
