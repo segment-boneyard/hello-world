@@ -1,4 +1,9 @@
 
+1.0.12 / 2015-09-25
+===================
+
+  * adding discounts to invoices and subscriptions
+
 1.0.11 / 2015-09-22
 ===================
 
