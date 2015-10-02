@@ -137,8 +137,9 @@ function onSuccess() {
 }
 
 // on error
-function onError() {
+function onError(err) {
   log.critical('data source failed.', { err: err.stack });
+  process.exit(1);
 }
 
 // global error logger
