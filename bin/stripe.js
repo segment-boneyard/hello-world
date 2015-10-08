@@ -15,6 +15,9 @@ var wait = require('co-wait');
 program
   .option('--secret <secret>', 'set the stripe secret key')
   .parse(process.argv);
+  
+var parallelTasks = 10;
+require('https').globalAgent.maxSockets = parallelTasks;
 
 // pull from stripe
 function* pull() {
@@ -28,7 +31,7 @@ function* pull() {
       tasks.push(fetch(resource));
     }
   }
-  yield parallel(tasks, 10);
+  yield parallel(tasks, parallelTasks);
   return Promise.resolve();
 }
 
