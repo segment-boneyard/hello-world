@@ -1,21 +1,23 @@
-var program = require('commander');
-var client = require('@segment/source')();
-var conf = require('@segment/config');
-var log = require('@segment/logger')(conf('logger'), { app: 'source/stripe' });
-var co = require('co');
-var resources = require('../lib/resources');
+#!/usr/bin/env node
+
 var Promise = require('bluebird');
-var parallel = require('co-parallel');
-var request = require('co-request');
+var client = require('@segment/source')();
+var co = require('co');
+var conf = require('@segment/config');
 var defaults = require('defaults');
 var extend = require('extend');
+var log = require('@segment/logger')(conf('logger'), { app: 'source/stripe' });
+var parallel = require('co-parallel');
+var program = require('commander');
+var request = require('co-request');
+var resources = require('../lib/resources');
 var wait = require('co-wait');
 
 // command line
 program
   .option('--secret <secret>', 'set the stripe secret key')
   .parse(process.argv);
-  
+
 var parallelTasks = 10;
 require('https').globalAgent.maxSockets = parallelTasks;
 
