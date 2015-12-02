@@ -18,7 +18,7 @@ test:
     - make build
 
 deployment:
-  deploy:
-    branch: master
+  release:
+    tag: /[0-9]+(\.[0-9]+)*/
     commands:
-      - curl -sLu "$GH_LOGIN:" https://raw.githubusercontent.com/segmentio/scripts/master/circle/docker/sources/build-tag.sh | sh
+      - curl -sLu "$GH_LOGIN:" https://raw.githubusercontent.com/segmentio/scripts/master/circle/docker/sources/build.sh | sh
