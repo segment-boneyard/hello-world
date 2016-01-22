@@ -36,7 +36,6 @@ function* pull() {
     .map(resource => fetch(resource))
 
   yield parallel(tasks, parallelTasks);
-  return Promise.resolve();
 }
 
 // pull a specific resource from stripe
