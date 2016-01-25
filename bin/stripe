@@ -1,64 +1,64 @@
 #!/usr/bin/env node
 
-var Promise = require('bluebird');
-var client = require('@segment/source')();
-var co = require('co');
-var conf = require('@segment/config');
-var defaults = require('defaults');
-var extend = require('extend');
-var log = require('@segment/logger')(conf('logger'), { app: 'source/stripe' });
-var parallel = require('co-parallel');
-var program = require('commander');
-var request = require('co-request');
-var resources = require('../lib/resources');
-var wait = require('co-wait');
+const Promise = require('bluebird');
+const client = require('@segment/source')();
+const co = require('co');
+const conf = require('@segment/config');
+const defaults = require('defaults');
+const extend = require('extend');
+const pkg = require('../package.json');
+const createLogger = require('@segment/kit/lib/logger');
+const parallel = require('co-parallel');
+const program = require('commander');
+const request = require('co-request');
+const resources = require('../lib/resources');
+const wait = require('co-wait');
 
 // command line
 program
   .option('--secret <secret>', 'set the stripe secret key')
   .parse(process.argv);
 
-var parallelTasks = 10;
-require('https').globalAgent.maxSockets = parallelTasks;
+// logger
+const log = createLogger({
+  name: pkg.name,
+  version: pkg.version
+});
+
+const concurrencyLimit = 10
+require('https').globalAgent.maxSockets = concurrencyLimit;
 
 // pull from stripe
-function* pull() {
-  var tasks = [];
-  var keys = Object.keys(resources);
-  for (var i = 0; i < keys.length; i += 1) {
-    var resource = resources[keys[i]];
-    if (resource._url) {
-      // if its a top level resource (customers, plans, etc)
-      // nested resources (cards, subscriptions) should not be listed
-      tasks.push(fetch(resource));
-    }
-  }
-  yield parallel(tasks, parallelTasks);
-  return Promise.resolve();
+function pull() {
+  const tasks = Object.keys(resources)
+    .map(key => resources[key])
+    .filter(resource => resource._url)
+    .map(resource => fetch(resource))
+
+  return parallel(tasks, concurrencyLimit);
 }
 
 // pull a specific resource from stripe
 function* fetch(resource) {
   var options = { limit: 100 };
-  log.info('starting collection query ..', { collection: resource._collection });
+  log.info({ collection: resource._collection }, 'starting collection query ..');
   do {
     var response = yield executeWithRetry(resource._url, options);
     var body = response.body;
 
-    for (var i = 0; i < body.data.length; i += 1) {
-      var obj = body.data[i];
+    body.data.forEach(function* (obj) {
       // subpaginate the object's lists
-      for (var j = 0; j < resource._subpages.length; j += 1) {
-        var subpage = resource._subpages[j]; 
+      resource._subpages.forEach(function* (subpage) {
         obj[subpage] = yield depaginate(obj[subpage]);
-      }
+      });
+
       yield resource._consume(client, obj);
-    }
+    });
 
     if (body.data.length > 0)
       options.starting_after = body.data[body.data.length - 1].id;
   } while (body.has_more);
-  log.info('collection finished', { collection: resource._collection });
+  log.info({ collection: resource._collection }, 'collection finished');
 }
 
 // depaginate the entire array by following the links
@@ -76,8 +76,8 @@ function* depaginate(body) {
 }
 
 // execute the request with a few retries
-function* executeWithRetry(url, options) {
-  return yield retry(execute.bind(null, url, options), { 
+function executeWithRetry(url, options) {
+  return retry(execute.bind(null, url, options), {
     retries: 5, // retry 5 times
     interval: 5000, // wait interval first before retrying
     factor: 2 // multiple interval by factor every response to get backoff
@@ -93,7 +93,7 @@ function* retry(fn, options) {
     try {
       return yield fn();
     } catch (err) {
-      log.error(err); // 
+      log.error(err);
       attempts--;
       if (!attempts) throw err;
       yield wait(interval);
@@ -106,7 +106,7 @@ function* retry(fn, options) {
 function* execute(url, options) {
   var response = yield request(req(url, options));
   if (response.statusCode !== 200) {
-    throw new Error('Bad Stripe response [' + response.statusCode + '] [' 
+    throw new Error('Bad Stripe response [' + response.statusCode + '] ['
       + url + ']: ' + JSON.stringify(response.body));
   }
   return response;
@@ -114,8 +114,8 @@ function* execute(url, options) {
 
 // create a new stripe request
 function req(url, options) {
-  return { 
-    url: url, 
+  return {
+    url: url,
     method: 'GET',
     auth: { user: program.secret, pass: '' },
     qs: defaults(options || {}, { limit: 100 }),
@@ -128,10 +128,10 @@ co(start).then(onSuccess).catch(onError);
 
 // start the program
 function* start() {
-   try {
-    return yield pull(); 
+  try {
+    yield pull();
   } catch (e) {
-    log.critical('application crashed', { err: e.stack });
+    log.fatal(e, 'application crashed');
     throw e;
   }
 }
@@ -143,11 +143,11 @@ function onSuccess() {
 
 // on error
 function onError(err) {
-  log.critical('data source failed.', { err: err.stack });
+  log.fatal(err, 'data source failed.');
   process.exit(1);
 }
 
 // global error logger
 process.on('uncaughtException', function (err) {
-  log.critical('uncaught exception', { stack: err.stack });
+  log.fatal(err, 'uncaught exception');
 });
