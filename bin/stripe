@@ -92,10 +92,10 @@ function* retry(fn, options) {
   while (true) {
     try {
       return yield fn();
-    } catch (err) {
-      log.error(err);
+    } catch (e) {
+      log.error(e);
       attempts--;
-      if (!attempts) throw err;
+      if (!attempts || (e.response && e.response.statusCode === 401)) throw e;
       yield wait(interval);
       interval = interval * options.factor;
     }
@@ -106,8 +106,12 @@ function* retry(fn, options) {
 function* execute(url, options) {
   var response = yield request(req(url, options));
   if (response.statusCode !== 200) {
-    throw new Error('Bad Stripe response [' + response.statusCode + '] ['
-      + url + ']: ' + JSON.stringify(response.body));
+    const err = new Error('Bad Stripe response');
+
+    err.response = {};
+    Object.assign(err.response, response);
+
+    throw err;
   }
   return response;
 }
