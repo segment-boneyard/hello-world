@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 const Promise = require('bluebird');
+const co = Promise.coroutine;
 const client = require('@segment/source')();
-const co = require('co');
 const conf = require('@segment/config');
 const defaults = require('defaults');
 const extend = require('extend');
@@ -39,30 +39,30 @@ function pull() {
 }
 
 // pull a specific resource from stripe
-function* fetch(resource) {
+const fetch = co(function* (resource) {
   var options = { limit: 100 };
   log.info({ collection: resource._collection }, 'starting collection query ..');
   do {
     var response = yield executeWithRetry(resource._url, options);
     var body = response.body;
 
-    body.data.forEach(function* (obj) {
+    body.data.forEach(co(function* (obj) {
       // subpaginate the object's lists
-      resource._subpages.forEach(function* (subpage) {
+      resource._subpages.forEach(co(function* (subpage) {
         obj[subpage] = yield depaginate(obj[subpage]);
-      });
+      }));
 
       yield resource._consume(client, obj);
-    });
+    }));
 
     if (body.data.length > 0)
       options.starting_after = body.data[body.data.length - 1].id;
   } while (body.has_more);
   log.info({ collection: resource._collection }, 'collection finished');
-}
+});
 
 // depaginate the entire array by following the links
-function* depaginate(body) {
+const depaginate = co(function* (body) {
   var data = body.data;
   var options = { limit: 100 };
   while (body.has_more) {
@@ -73,7 +73,7 @@ function* depaginate(body) {
     data = data.concat(body.data);
   }
   return data;
-}
+});
 
 // execute the request with a few retries
 function executeWithRetry(url, options) {
@@ -86,7 +86,7 @@ function executeWithRetry(url, options) {
 
 // retry a function with properties
 // based off co-retry but with logging
-function* retry(fn, options) {
+const retry = co(function* (fn, options) {
   var attempts = options.retries + 1;
   var interval = options.interval;
   while (true) {
@@ -100,10 +100,10 @@ function* retry(fn, options) {
       interval = interval * options.factor;
     }
   }
-};
+});
 
 // execute the request with error handling
-function* execute(url, options) {
+const execute = co(function* (url, options) {
   var response = yield request(req(url, options));
   if (response.statusCode !== 200) {
     const err = new Error('Bad Stripe response');
@@ -114,7 +114,7 @@ function* execute(url, options) {
     throw err;
   }
   return response;
-}
+});
 
 // create a new stripe request
 function req(url, options) {
@@ -128,17 +128,14 @@ function req(url, options) {
 }
 
 // start the program
-co(start).then(onSuccess).catch(onError);
-
-// start the program
-function* start() {
+const start = co(function* () {
   try {
-    yield pull();
+    return pull();
   } catch (e) {
     log.fatal(e, 'application crashed');
     throw e;
   }
-}
+});
 
 // on success
 function onSuccess() {
@@ -155,3 +152,6 @@ function onError(err) {
 process.on('uncaughtException', function (err) {
   log.fatal(err, 'uncaught exception');
 });
+
+// start the program
+start().then(onSuccess).catch(onError);
