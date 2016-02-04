@@ -1,6 +1,6 @@
 {
   "name": "@segment/source-stripe",
-  "version": "1.1.23",
+  "version": "1.2.0",
   "private": true,
   "engines": {
     "node": ">=4.0.0"
