@@ -107,10 +107,8 @@ const execute = co(function* (url, options) {
   var response = yield request(req(url, options));
   if (response.statusCode !== 200) {
     const err = new Error('Bad Stripe response');
-
-    err.response = {};
-    Object.assign(err.response, response);
-
+    err.response = response;
+    if (response.statusCode === 401) err.exitSuccess = true;
     throw err;
   }
   return response;
@@ -145,7 +143,7 @@ function onSuccess() {
 // on error
 function onError(err) {
   log.fatal(err, 'data source failed.');
-  process.exit(1);
+  err.exitSuccess ? process.exit(0) : process.exit(1);
 }
 
 // global error logger
