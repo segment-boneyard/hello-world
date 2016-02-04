@@ -108,7 +108,10 @@ const execute = co(function* (url, options) {
   if (response.statusCode !== 200) {
     const err = new Error('Bad Stripe response');
     err.response = response;
-    if (response.statusCode === 401) err.exitSuccess = true;
+    if (response.statusCode === 401) {
+      err.message = 'Invalid credentials';
+      err.showToUser = true;
+    }
     throw err;
   }
   return response;
@@ -135,15 +138,17 @@ const start = co(function* () {
   }
 });
 
-// on success
 function onSuccess() {
   log.info('finished running data source successfully');
 }
 
-// on error
 function onError(err) {
   log.fatal(err, 'data source failed.');
-  err.exitSuccess ? process.exit(0) : process.exit(1);
+  if (err.showToUser) {
+    client.report().error(err.message, err.response).finally(() =>
+      process.exit(0)
+    );
+  } else process.exit(1);
 }
 
 // global error logger
