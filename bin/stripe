@@ -143,12 +143,13 @@ function onSuccess() {
 }
 
 function onError(err) {
-  log.fatal(err, 'data source failed.');
+  log.fatal(err, 'an error has caused this application to crash');
   if (err.showToUser) {
-    client.report().error(err.message, err.response).finally(() =>
+    client.report().error(err.message).then(() =>
       process.exit(0)
     );
-  } else process.exit(1);
+  }
+  process.exit(1);
 }
 
 // global error logger
