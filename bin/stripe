@@ -130,17 +130,8 @@ function req(url, options) {
 
 // start the program
 const start = co(function* () {
-  try {
-    return pull();
-  } catch (e) {
-    log.fatal(e, 'application crashed');
-    throw e;
-  }
+  return pull();
 });
-
-function onSuccess() {
-  log.info('finished running data source successfully');
-}
 
 function onError(err) {
   log.fatal(err, 'an error has caused this application to crash');
@@ -153,9 +144,8 @@ function onError(err) {
 }
 
 // global error logger
-process.on('uncaughtException', function (err) {
-  log.fatal(err, 'uncaught exception');
-});
+process.on('uncaughtException', onError);
+process.on('unhandledRejection', onError);
 
 // start the program
-start().then(onSuccess).catch(onError);
+pull();
