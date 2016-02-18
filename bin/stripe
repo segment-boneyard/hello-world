@@ -128,11 +128,6 @@ function req(url, options) {
   };
 }
 
-// start the program
-const start = co(function* () {
-  return pull();
-});
-
 function onError(err) {
   log.fatal(err, 'an error has caused this application to crash');
   if (err.showToUser) {
