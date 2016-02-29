@@ -7,7 +7,7 @@
   },
   "dependencies": {
     "@segment/config": "^5.10.2",
-    "@segment/kit": "^1.0.0-rc.1",
+    "@segment/kit": "^1.0.0",
     "@segment/logger": "^3.1.5",
     "@segment/source": "^0.5.0",
     "bluebird": "^2.9.34",
