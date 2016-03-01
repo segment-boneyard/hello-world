@@ -107,6 +107,7 @@ const retry = co(function* (fn, options) {
 const execute = co(function* (url, options) {
   var response = yield request(req(url, options));
   if (response.statusCode !== 200) {
+    log.error(response, 'Bad Stripe response');
     const err = new Error('Bad Stripe response');
     err.response = response;
     if (response.statusCode === 401) {
