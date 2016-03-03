@@ -47,7 +47,8 @@ const fetch = co(function* (resource) {
     var body = response.body;
 
     body.data.forEach(co(function* (obj) {
-      // subpaginate the object's lists
+      // subpaginate the object's lists *before* consumption
+      // that way obj[subpage] is populated when resource#consume is called
       yield Promise.each(resource._subpages, co(function* (subpage) {
         obj[subpage] = yield depaginate(obj[subpage]);
       }));
