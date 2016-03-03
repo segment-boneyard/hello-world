@@ -25,7 +25,7 @@ const log = createLogger({
   version: pkg.version
 });
 
-const concurrencyLimit = 10
+const concurrencyLimit = 10;
 require('https').globalAgent.maxSockets = concurrencyLimit;
 
 // pull from stripe
@@ -136,8 +136,9 @@ function onError(err) {
     return client.report().error(err.message).then(() =>
       process.exit(0)
     );
+  } else {
+    process.exit(1);
   }
-  process.exit(1);
 }
 
 // global error logger
