@@ -2,8 +2,23 @@
   "name": "@segment/source-stripe",
   "version": "1.2.24",
   "private": true,
+  "description": "Segment source for Stripe",
+  "main": "bin/stripe",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/segment-sources/stripe.git"
+  },
+  "author": "Segment <friends@segment.com>",
+  "license": "SEE LICENSE IN LICENSE.md",
+  "bugs": {
+    "url": "https://github.com/segment-sources/stripe/issues"
+  },
+  "homepage": "https://github.com/segment-sources/stripe#readme",
   "engines": {
     "node": ">=4.0.0"
+  },
+  "scripts": {
+    "test": "make test"
   },
   "dependencies": {
     "@segment/config": "^5.10.2",
@@ -22,5 +37,10 @@
     "flat": "^1.6.0",
     "lodash": "^3.10.1",
     "md5": "^2.0.0"
+  },
+  "devDependencies": {
+    "@segment/eslint-config": "^3.0.0",
+    "dependency-check": "^2.5.1",
+    "eslint": "^2.2.0"
   }
 }
