@@ -1,14 +1,17 @@
 #!/usr/bin/env node
+'use strict';
+
+/*
+ * Module dependencies.
+ */
 
 const Promise = require('bluebird');
-const co = Promise.coroutine;
 const client = require('@segment/source')();
-const conf = require('@segment/config');
-const defaults = require('defaults');
-const extend = require('extend');
-const pkg = require('../package.json');
+const co = Promise.coroutine;
 const createLogger = require('@segment/kit/lib/logger');
+const defaults = require('defaults');
 const parallel = require('co-parallel');
+const pkg = require('../package.json');
 const program = require('commander');
 const request = require('co-request');
 const resources = require('../lib/resources');
@@ -28,15 +31,19 @@ const log = createLogger({
 const concurrencyLimit = 10;
 require('https').globalAgent.maxSockets = concurrencyLimit;
 
-// pull from stripe
-function pull() {
-  const tasks = Object.keys(resources)
-    .map(key => resources[key])
-    .filter(resource => resource._url)
-    .map(resource => fetch(resource))
-
-  return parallel(tasks, concurrencyLimit);
-}
+// depaginate the entire array by following the links
+const depaginate = co(function* (body) {
+  var data = body.data;
+  var options = { limit: 100 };
+  while (body.has_more) {
+    options.starting_after = body.data[body.data.length - 1].id;
+    var url = 'https://api.stripe.com' + body.url;
+    var response = yield executeWithRetry(url, options);
+    body = response.body;
+    data = data.concat(body.data);
+  }
+  return data;
+});
 
 // pull a specific resource from stripe
 const fetch = co(function* (resource) {
@@ -57,33 +64,21 @@ const fetch = co(function* (resource) {
       yield resource._consume(client, obj);
     }));
 
-    if (body.data.length > 0)
+    if (body.data.length > 0) {
       options.starting_after = body.data[body.data.length - 1].id;
+    }
   } while (body.has_more);
   log.info({ collection: resource._collection }, 'collection finished');
 });
 
-// depaginate the entire array by following the links
-const depaginate = co(function* (body) {
-  var data = body.data;
-  var options = { limit: 100 };
-  while (body.has_more) {
-    options.starting_after = body.data[body.data.length - 1].id;
-    var url = 'https://api.stripe.com' + body.url;
-    var response = yield executeWithRetry(url, options);
-    body = response.body;
-    data = data.concat(body.data);
-  }
-  return data;
-});
+// pull from stripe
+function pull() {
+  const tasks = Object.keys(resources)
+    .map((key) => resources[key])
+    .filter((resource) => resource._url)
+    .map((resource) => fetch(resource));
 
-// execute the request with a few retries
-function executeWithRetry(url, options) {
-  return retry(execute.bind(null, url, options), {
-    retries: 5, // retry 5 times
-    interval: 5000, // wait interval first before retrying
-    factor: 2 // multiple interval by factor every response to get backoff
-  });
+  return parallel(tasks, concurrencyLimit);
 }
 
 // retry a function with properties
@@ -91,13 +86,17 @@ function executeWithRetry(url, options) {
 const retry = co(function* (fn, options) {
   var attempts = options.retries + 1;
   var interval = options.interval;
+  /* eslint-disable no-constant-condition */
   while (true) {
+  /* eslint-enable no-constant-condition */
     try {
       return yield fn();
-    } catch (e) {
-      log.error(e);
+    } catch (err) {
+      log.error(err);
       attempts--;
-      if (!attempts || (e.response && e.response.statusCode === 401)) throw e;
+      if (!attempts || err.response && err.response.statusCode === 401) {
+        throw err;
+      }
       yield wait(interval);
       interval = interval * options.factor;
     }
@@ -120,6 +119,15 @@ const execute = co(function* (url, options) {
   return response;
 });
 
+// execute the request with a few retries
+function executeWithRetry(url, options) {
+  return retry(execute.bind(null, url, options), {
+    retries: 5, // retry 5 times
+    interval: 5000, // wait interval first before retrying
+    factor: 2 // multiple interval by factor every response to get backoff
+  });
+}
+
 // create a new stripe request
 function req(url, options) {
   return {
@@ -134,9 +142,7 @@ function req(url, options) {
 function onError(err) {
   log.fatal(err, 'an error has caused this application to crash');
   if (err.showToUser) {
-    return client.report().error(err.message).then(() =>
-      process.exit(0)
-    );
+    client.report().error(err.message).then(() => process.exit(0));
   } else {
     process.exit(1);
   }
