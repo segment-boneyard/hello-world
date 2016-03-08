@@ -3,6 +3,12 @@ v NEXT (Unreleased)
 
 
 
+1.3.1 / 2015-03-08
+==================
+
+- Update to `@segment/source@0.6.0` to add GetContext and SetContext RPC methods
+- Update to `node-kit@3.1.0` to fix hang caused by metrics socket
+
 1.3.0 / 2015-03-08
 ==================
 
