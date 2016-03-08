@@ -1,6 +1,11 @@
 v NEXT (Unreleased)
 ===================
 
+
+
+1.3.0 / 2015-03-08
+==================
+
 - Switch from commander to node-kit for command-line option parsing
 - Start collecting runtime stats (via node-kit)
 
