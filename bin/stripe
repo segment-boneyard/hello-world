@@ -7,26 +7,30 @@
 
 const Promise = require('bluebird');
 const client = require('@segment/source')();
-const co = Promise.coroutine;
-const createLogger = require('@segment/kit/lib/logger');
+const co = require('bluebird').coroutine;
 const defaults = require('defaults');
+const kit = require('@segment/kit');
 const parallel = require('co-parallel');
 const pkg = require('../package.json');
-const program = require('commander');
 const request = require('co-request');
 const resources = require('../lib/resources');
 const wait = require('co-wait');
 
-// command line
-program
-  .option('--secret <secret>', 'set the stripe secret key')
-  .parse(process.argv);
-
-// logger
-const log = createLogger({
+const service = kit.create({
   name: pkg.name,
-  version: pkg.version
+  version: pkg.version,
+  config: {
+    secret: {
+      description: 'The Stripe secret key used to sync data',
+      required: true
+    },
+    'datadog.addr': {
+      description: 'Address used for Datadog/statsd metrics'
+    }
+  }
 });
+const config = service.config;
+const log = service.log;
 
 const concurrencyLimit = 10;
 require('https').globalAgent.maxSockets = concurrencyLimit;
@@ -133,7 +137,7 @@ function req(url, options) {
   return {
     url: url,
     method: 'GET',
-    auth: { user: program.secret, pass: '' },
+    auth: { user: config.secret, pass: '' },
     qs: defaults(options || {}, { limit: 100 }),
     json: true
   };
