@@ -13,6 +13,7 @@ const kit = require('@segment/kit');
 const parallel = require('co-parallel');
 const pkg = require('../package.json');
 const request = require('co-request');
+const parseUrl = require('url').parse;
 const resources = require('../lib/resources');
 const wait = require('co-wait');
 
@@ -31,6 +32,7 @@ const service = kit.create({
 });
 const config = service.config;
 const log = service.log;
+const metrics = service.metrics;
 
 const concurrencyLimit = 10;
 require('https').globalAgent.maxSockets = concurrencyLimit;
@@ -109,7 +111,20 @@ const retry = co(function* (fn, options) {
 
 // execute the request with error handling
 const execute = co(function* (url, options) {
-  var response = yield request(req(url, options));
+  const current = new Date();
+  const response = yield request(req(url, options));
+  const parsedUrl = parseUrl(url);
+  const baseTags = [`path:${parsedUrl.pathname}`];
+  const statusCodeBucket = `${String(response.statusCode).charAt(0)}xx`;
+
+  metrics.histogram('http.response.payload_size', response.headers['content-length'], baseTags);
+  metrics.histogram('http.request.duration', new Date() - current, baseTags);
+  metrics.incr('http.request.total', 1, baseTags);
+  metrics.incr(`http.response.status_code.${statusCodeBucket}`, 1, [
+    `status_code:${response.statusCode}`,
+    `status_code_bucket:${statusCodeBucket}`
+  ].concat(baseTags));
+
   if (response.statusCode !== 200) {
     log.error(response, 'Bad Stripe response');
     const err = new Error('Bad Stripe response');
