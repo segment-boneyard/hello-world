@@ -25,6 +25,10 @@ const service = kit.create({
       description: 'The Stripe secret key used to sync data',
       required: true
     },
+    resources: {
+      description: 'Override for only running some resources',
+      type: (str) => str.split(',')
+    },
     'datadog.addr': {
       description: 'Address used for Datadog/statsd metrics'
     }
@@ -82,6 +86,11 @@ function pull() {
   const tasks = Object.keys(resources)
     .map((key) => resources[key])
     .filter((resource) => resource._url)
+    .filter((resource) => {
+      if (Array.isArray(config.resources)) {
+        return config.resources.indexOf(resource._collection) > -1;
+      } else return resource;
+    })
     .map((resource) => fetch(resource));
 
   return parallel(tasks, concurrencyLimit);
