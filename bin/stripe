@@ -67,7 +67,7 @@ const fetch = co(function* (resource) {
       }));
 
       // execute resource
-      yield resource._consume(client, obj);
+      yield resource._consume(client, obj, log);
     }));
 
     if (body.data.length > 0) {
