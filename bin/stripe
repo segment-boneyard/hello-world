@@ -89,7 +89,8 @@ function pull() {
     .filter((resource) => {
       if (Array.isArray(config.resources)) {
         return config.resources.indexOf(resource._collection) > -1;
-      } else return resource;
+      }
+      return resource;
     })
     .map((resource) => fetch(resource));
 
