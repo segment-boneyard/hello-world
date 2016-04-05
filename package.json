@@ -32,7 +32,8 @@
     "extend": "^3.0.0",
     "flat": "^1.6.0",
     "lodash": "^3.10.1",
-    "md5": "^2.0.0"
+    "md5": "^2.0.0",
+    "underscore.string": "^3.3.4"
   },
   "devDependencies": {
     "@segment/eslint-config": "^3.0.0",
