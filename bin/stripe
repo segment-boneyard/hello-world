@@ -1,66 +1,45 @@
 #!/usr/bin/env node
+'use strict';
+
+/*
+ * Module dependencies.
+ */
 
 const Promise = require('bluebird');
-const co = Promise.coroutine;
 const client = require('@segment/source')();
-const conf = require('@segment/config');
+const co = require('bluebird').coroutine;
 const defaults = require('defaults');
-const extend = require('extend');
-const pkg = require('../package.json');
-const createLogger = require('@segment/kit/lib/logger');
+const kit = require('@segment/kit');
 const parallel = require('co-parallel');
-const program = require('commander');
+const pkg = require('../package.json');
 const request = require('co-request');
+const parseUrl = require('url').parse;
 const resources = require('../lib/resources');
 const wait = require('co-wait');
 
-// command line
-program
-  .option('--secret <secret>', 'set the stripe secret key')
-  .parse(process.argv);
-
-// logger
-const log = createLogger({
+const service = kit.create({
   name: pkg.name,
-  version: pkg.version
+  version: pkg.version,
+  config: {
+    secret: {
+      description: 'The Stripe secret key used to sync data',
+      required: true
+    },
+    resources: {
+      description: 'Override for only running some resources',
+      type: (str) => str.split(',')
+    },
+    'datadog.addr': {
+      description: 'Address used for Datadog/statsd metrics'
+    }
+  }
 });
+const config = service.config;
+const log = service.log;
+const metrics = service.metrics;
 
-const concurrencyLimit = 10
+const concurrencyLimit = 10;
 require('https').globalAgent.maxSockets = concurrencyLimit;
-
-// pull from stripe
-function pull() {
-  const tasks = Object.keys(resources)
-    .map(key => resources[key])
-    .filter(resource => resource._url)
-    .map(resource => fetch(resource))
-
-  return parallel(tasks, concurrencyLimit);
-}
-
-// pull a specific resource from stripe
-const fetch = co(function* (resource) {
-  var options = { limit: 100 };
-  log.info({ collection: resource._collection }, 'starting collection query ..');
-  do {
-    var response = yield executeWithRetry(resource._url, options);
-    var body = response.body;
-
-    body.data.forEach(co(function* (obj) {
-      // subpaginate the object's lists
-      yield Promise.each(resource._subpages, co(function* (subpage) {
-        obj[subpage] = yield depaginate(obj[subpage]);
-      }));
-
-      // execute resource
-      yield resource._consume(client, obj);
-    }));
-
-    if (body.data.length > 0)
-      options.starting_after = body.data[body.data.length - 1].id;
-  } while (body.has_more);
-  log.info({ collection: resource._collection }, 'collection finished');
-});
 
 // depaginate the entire array by following the links
 const depaginate = co(function* (body) {
@@ -76,13 +55,46 @@ const depaginate = co(function* (body) {
   return data;
 });
 
-// execute the request with a few retries
-function executeWithRetry(url, options) {
-  return retry(execute.bind(null, url, options), {
-    retries: 5, // retry 5 times
-    interval: 5000, // wait interval first before retrying
-    factor: 2 // multiple interval by factor every response to get backoff
-  });
+// pull a specific resource from stripe
+const fetch = co(function* (resource) {
+  var options = { limit: 100 };
+  log.info({ collection: resource._collection }, 'starting collection query ..');
+  do {
+    var response = yield executeWithRetry(resource._url, options);
+    var body = response.body;
+
+    body.data.forEach(co(function* (obj) {
+      // subpaginate the object's lists *before* consumption
+      // that way obj[subpage] is populated when resource#consume is called
+      yield Promise.each(resource._subpages, co(function* (subpage) {
+        obj[subpage] = yield depaginate(obj[subpage]);
+      }));
+
+      // execute resource
+      yield resource._consume(client, obj, log);
+    }));
+
+    if (body.data.length > 0) {
+      options.starting_after = body.data[body.data.length - 1].id;
+    }
+  } while (body.has_more);
+  log.info({ collection: resource._collection }, 'collection finished');
+});
+
+// pull from stripe
+function pull() {
+  const tasks = Object.keys(resources)
+    .map((key) => resources[key])
+    .filter((resource) => resource._url)
+    .filter((resource) => {
+      if (Array.isArray(config.resources)) {
+        return config.resources.indexOf(resource._collection) > -1;
+      }
+      return resource;
+    })
+    .map((resource) => fetch(resource));
+
+  return parallel(tasks, concurrencyLimit);
 }
 
 // retry a function with properties
@@ -90,13 +102,17 @@ function executeWithRetry(url, options) {
 const retry = co(function* (fn, options) {
   var attempts = options.retries + 1;
   var interval = options.interval;
+  /* eslint-disable no-constant-condition */
   while (true) {
+  /* eslint-enable no-constant-condition */
     try {
       return yield fn();
-    } catch (e) {
-      log.error(e);
+    } catch (err) {
+      log.error(err);
       attempts--;
-      if (!attempts || (e.response && e.response.statusCode === 401)) throw e;
+      if (!attempts || err.response && err.response.statusCode === 401) {
+        throw err;
+      }
       yield wait(interval);
       interval = interval * options.factor;
     }
@@ -105,7 +121,20 @@ const retry = co(function* (fn, options) {
 
 // execute the request with error handling
 const execute = co(function* (url, options) {
-  var response = yield request(req(url, options));
+  const current = new Date();
+  const response = yield request(req(url, options));
+  const parsedUrl = parseUrl(url);
+  const baseTags = [`path:${parsedUrl.pathname}`];
+  const statusCodeBucket = `${String(response.statusCode).charAt(0)}xx`;
+
+  metrics.histogram('http.response.payload_size', response.headers['content-length'], baseTags);
+  metrics.histogram('http.request.duration', new Date() - current, baseTags);
+  metrics.incr('http.request.total', 1, baseTags);
+  metrics.incr(`http.response.status_code.${statusCodeBucket}`, 1, [
+    `status_code:${response.statusCode}`,
+    `status_code_bucket:${statusCodeBucket}`
+  ].concat(baseTags));
+
   if (response.statusCode !== 200) {
     log.error(response, 'Bad Stripe response');
     const err = new Error('Bad Stripe response');
@@ -119,12 +148,21 @@ const execute = co(function* (url, options) {
   return response;
 });
 
+// execute the request with a few retries
+function executeWithRetry(url, options) {
+  return retry(execute.bind(null, url, options), {
+    retries: 5, // retry 5 times
+    interval: 5000, // wait interval first before retrying
+    factor: 2 // multiple interval by factor every response to get backoff
+  });
+}
+
 // create a new stripe request
 function req(url, options) {
   return {
     url: url,
     method: 'GET',
-    auth: { user: program.secret, pass: '' },
+    auth: { user: config.secret, pass: '' },
     qs: defaults(options || {}, { limit: 100 }),
     json: true
   };
@@ -133,11 +171,10 @@ function req(url, options) {
 function onError(err) {
   log.fatal(err, 'an error has caused this application to crash');
   if (err.showToUser) {
-    return client.report().error(err.message).then(() =>
-      process.exit(0)
-    );
+    client.report().error(err.message).then(() => process.exit(0));
+  } else {
+    process.exit(1);
   }
-  process.exit(1);
 }
 
 // global error logger

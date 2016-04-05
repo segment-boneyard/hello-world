@@ -1,4 +1,4 @@
-FROM segment/sources-node:3.0.17
+FROM segment/sources-node:3.1.1
 
 COPY . /src
 
