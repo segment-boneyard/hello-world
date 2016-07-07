@@ -6,7 +6,7 @@
  */
 
 const Promise = require('bluebird');
-const client = require('@segment/source')();
+const client = require('@segment/source');
 const co = require('bluebird').coroutine;
 const defaults = require('defaults');
 const kit = require('@segment/kit');
@@ -171,7 +171,7 @@ function req(url, options) {
 function onError(err) {
   log.fatal(err, 'an error has caused this application to crash');
   if (err.showToUser) {
-    client.report().error(err.message).then(() => process.exit(0));
+    client.reportError(err.message).then(() => process.exit(0));
   } else {
     process.exit(1);
   }
