@@ -26,7 +26,8 @@ DEPCHECK_IGNORE_MODULES ?= \
 	eslint \
 	istanbul \
 	mocha \
-	mocha-circleci-reporter
+	mocha-circleci-reporter \
+	eslint-plugin-require-path-exists
 
 # Arguments for `check-dependencies`
 DEPCHECK_FLAGS ?= \
