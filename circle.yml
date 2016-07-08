@@ -8,7 +8,7 @@ dependencies:
   pre:
     - npm config set "//registry.npmjs.org/:_authToken" $NPM_AUTH
   override:
-    - make install
+    - make distclean && make install
 
 test:
   override:
