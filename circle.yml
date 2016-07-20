@@ -27,3 +27,9 @@ deployment:
     commands:
       - curl -sLu "$GH_LOGIN:" https://raw.githubusercontent.com/segmentio/scripts/master/circle/docker/sources/build-tag.sh | sh
       - curl -sLu "$GH_LOGIN:" https://raw.githubusercontent.com/segmentio/scripts/master/circle/docker/sources/production-tag.sh | sh
+  alpha:
+    branch: alpha
+    owner: segment-sources
+    commands:
+      - curl -sLu "$GH_LOGIN:" https://raw.githubusercontent.com/segmentio/scripts/master/circle/docker/sources/build-tag.sh | sh
+      - curl -sLu "$GH_LOGIN:" https://raw.githubusercontent.com/segmentio/scripts/master/circle/docker/sources/production-tag.sh | sh
