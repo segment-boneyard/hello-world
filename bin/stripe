@@ -126,7 +126,7 @@ const execute = co(function* (url, options) {
   const baseTags = [`path:${parsedUrl.pathname}`];
   const statusCodeBucket = `${String(response.statusCode).charAt(0)}xx`;
 
-  client.statsHistogram('http.response.payload_size', response.headers['content-length'], baseTags)
+  client.statsHistogram('http.response.payload_size', response.headers['content-length'], baseTags);
   client.statsHistogram('http.request.duration', new Date() - current, baseTags);
   client.statsIncrement('http.request.duration', new Date() - current, baseTags);
   client.statsIncrement('http.request.total', 1, baseTags);
