@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "@segment/kit": "^3.1.0",
-    "@segment/source": "^2.0.0",
+    "@segment/source": "^2.4.0",
     "bluebird": "^2.9.34",
     "change-case": "^2.3.1",
     "co-parallel": "^1.0.0",
