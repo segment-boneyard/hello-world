@@ -15,9 +15,21 @@ test:
     - make test
 
 deployment:
-  deploy:
-    tag: /[0-9]+(\.[0-9]+)*/
+  master:
+    branch: master
     owner: segment-sources
     commands:
-      - curl -sLu "$GH_LOGIN:" https://raw.githubusercontent.com/segmentio/scripts/master/circle/docker/sources/build.sh | sh
-      - curl -sLu "$GH_LOGIN:" https://raw.githubusercontent.com/segmentio/scripts/master/circle/docker/sources/production.sh | sh
+      - curl -sLu "$GH_LOGIN:" https://raw.githubusercontent.com/segmentio/scripts/master/circle/docker/sources/build-tag.sh | sh
+      - curl -sLu "$GH_LOGIN:" https://raw.githubusercontent.com/segmentio/scripts/master/circle/docker/sources/production-tag.sh | sh
+  beta:
+    branch: beta
+    owner: segment-sources
+    commands:
+      - curl -sLu "$GH_LOGIN:" https://raw.githubusercontent.com/segmentio/scripts/master/circle/docker/sources/build-tag.sh | sh
+      - curl -sLu "$GH_LOGIN:" https://raw.githubusercontent.com/segmentio/scripts/master/circle/docker/sources/production-tag.sh | sh
+  alpha:
+    branch: alpha
+    owner: segment-sources
+    commands:
+      - curl -sLu "$GH_LOGIN:" https://raw.githubusercontent.com/segmentio/scripts/master/circle/docker/sources/build-tag.sh | sh
+      - curl -sLu "$GH_LOGIN:" https://raw.githubusercontent.com/segmentio/scripts/master/circle/docker/sources/production-tag.sh | sh

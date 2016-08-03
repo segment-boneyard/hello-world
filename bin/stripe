@@ -15,6 +15,7 @@ const pkg = require('../package.json');
 const request = require('co-request');
 const parseUrl = require('url').parse;
 const resources = require('../lib/resources');
+const clone = require('lodash').clone;
 const wait = require('co-wait');
 
 const service = kit.create({
@@ -41,13 +42,13 @@ const concurrencyLimit = 10;
 require('https').globalAgent.maxSockets = concurrencyLimit;
 
 // depaginate the entire array by following the links
-const depaginate = co(function* (body) {
+const depaginate = co(function* (body, options, headers) {
   var data = body.data;
-  var options = { limit: 100 };
+
   while (body.has_more) {
     options.starting_after = body.data[body.data.length - 1].id;
     var url = 'https://api.stripe.com' + body.url;
-    var response = yield executeWithRetry(url, options);
+    var response = yield executeWithRetry(url, options, headers);
     body = response.body;
     data = data.concat(body.data);
   }
@@ -56,17 +57,21 @@ const depaginate = co(function* (body) {
 
 // pull a specific resource from stripe
 const fetch = co(function* (resource) {
-  var options = { limit: 100 };
+  var options = Object.assign({ limit: 100 }, resource._options);
   log.info({ collection: resource._collection }, 'starting collection query ..');
   do {
-    var response = yield executeWithRetry(resource._url, options);
+    var response = yield executeWithRetry(resource._url, options, resource._headers);
     var body = response.body;
 
     body.data.forEach(co(function* (obj) {
       // subpaginate the object's lists *before* consumption
       // that way obj[subpage] is populated when resource#consume is called
       yield Promise.each(resource._subpages, co(function* (subpage) {
-        obj[subpage] = yield depaginate(obj[subpage]);
+        obj[subpage] = yield depaginate(
+          obj[subpage],
+          clone(options),
+          resource._headers
+        );
       }));
 
       // execute resource
@@ -119,9 +124,9 @@ const retry = co(function* (fn, options) {
 });
 
 // execute the request with error handling
-const execute = co(function* (url, options) {
+const execute = co(function* (url, options, headers) {
   const current = new Date();
-  const response = yield request(req(url, options));
+  const response = yield request(req(url, options, headers));
   const parsedUrl = parseUrl(url);
   const baseTags = [`path:${parsedUrl.pathname}`];
   const statusCodeBucket = `${String(response.statusCode).charAt(0)}xx`;
@@ -149,8 +154,8 @@ const execute = co(function* (url, options) {
 });
 
 // execute the request with a few retries
-function executeWithRetry(url, options) {
-  return retry(execute.bind(null, url, options), {
+function executeWithRetry(url, options, headers) {
+  return retry(execute.bind(null, url, options, headers), {
     retries: 5, // retry 5 times
     interval: 5000, // wait interval first before retrying
     factor: 2 // multiple interval by factor every response to get backoff
@@ -158,10 +163,11 @@ function executeWithRetry(url, options) {
 }
 
 // create a new stripe request
-function req(url, options) {
+function req(url, options, headers) {
   return {
     url: url,
     method: 'GET',
+    headers: headers || {},
     auth: { user: config.secret, pass: '' },
     qs: defaults(options || {}, { limit: 100 }),
     json: true
