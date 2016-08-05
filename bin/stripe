@@ -131,11 +131,11 @@ const execute = co(function* (url, options, headers) {
   const baseTags = [`path:${parsedUrl.pathname}`];
   const statusCodeBucket = `${String(response.statusCode).charAt(0)}xx`;
 
-  client.statsHistogram('http.response.payload_size', response.headers['content-length'], baseTags);
-  client.statsHistogram('http.request.duration', new Date() - current, baseTags);
-  client.statsIncrement('http.request.duration', new Date() - current, baseTags);
-  client.statsIncrement('http.request.total', 1, baseTags);
-  client.statsIncrement(`http.response.status_code.${statusCodeBucket}`, 1, [
+  yield client.statsHistogram('http.response.payload_size', response.headers['content-length'], baseTags);
+  yield client.statsHistogram('http.request.duration', new Date() - current, baseTags);
+  yield client.statsIncrement('http.request.duration', new Date() - current, baseTags);
+  yield client.statsIncrement('http.request.total', 1, baseTags);
+  yield client.statsIncrement(`http.response.status_code.${statusCodeBucket}`, 1, [
     `status_code:${response.statusCode}`,
     `status_code_bucket:${statusCodeBucket}`
   ].concat(baseTags));
