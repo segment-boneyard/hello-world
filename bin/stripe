@@ -16,7 +16,6 @@ const request = require('co-request');
 const parseUrl = require('url').parse;
 const resources = require('../lib/resources');
 const clone = require('lodash').clone;
-const wait = require('co-wait');
 
 const service = kit.create({
   name: pkg.name,
@@ -117,7 +116,7 @@ const retry = co(function* (fn, options) {
       if (!attempts || err.response && err.response.statusCode === 401) {
         throw err;
       }
-      yield wait(interval);
+      yield Promise.delay(interval);
       interval = interval * options.factor;
     }
   }

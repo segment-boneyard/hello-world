@@ -23,11 +23,10 @@
   "dependencies": {
     "@segment/kit": "^3.1.0",
     "@segment/source": "^2.5.0",
-    "bluebird": "^2.9.34",
+    "bluebird": "^3.4.1",
     "change-case": "^2.3.1",
     "co-parallel": "^1.0.0",
     "co-request": "^1.0.0",
-    "co-wait": "0.0.0",
     "defaults": "^1.0.2",
     "extend": "^3.0.0",
     "flat": "^1.6.0",
