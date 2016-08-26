@@ -58,17 +58,20 @@ const fetch = co(function* (resource) {
     var response = yield executeWithRetry(resource._url, options, resource._headers);
     var body = response.body;
 
-    yield Promise.map(body.data, function(obj) {
-      return Promise.map(resource._subpages, co(function* (subpage) {
+    body.data.forEach(co(function* (obj) {
+      // subpaginate the object's lists *before* consumption
+      // that way obj[subpage] is populated when resource#consume is called
+      yield Promise.each(resource._subpages, co(function* (subpage) {
         obj[subpage] = yield depaginate(
           obj[subpage],
           clone(options),
           resource._headers
         );
-
-        return resource._consume(client, obj, log);
       }));
-    });
+
+      // execute resource
+      yield resource._consume(client, obj, log);
+    }));
 
     if (body.data.length > 0) {
       options.starting_after = body.data[body.data.length - 1].id;
