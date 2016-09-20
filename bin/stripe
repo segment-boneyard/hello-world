@@ -186,5 +186,6 @@ function onError(err) {
 process.on('uncaughtException', onError);
 process.on('unhandledRejection', onError);
 
+// patch ssl library to use system ca bundle (required to work with shifu)
 // start the program
-pull();
+client.useSystemCaBundle().then(pull);
