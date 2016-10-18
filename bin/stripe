@@ -5,6 +5,7 @@
  * Module dependencies.
  */
 
+const TokenBucket = require('token-bucket-promise');
 const Promise = require('bluebird');
 const client = require('@segment/source');
 const co = require('bluebird').coroutine;
@@ -30,11 +31,20 @@ const service = kit.create({
     },
     'datadog.addr': {
       description: 'Address used for Datadog/statsd metrics'
+    },
+    rps: {
+      description: 'reqs/second granted to Stripe API',
+      type: Number,
+      default: '100'
     }
   }
 });
 const config = service.config;
 const log = service.log;
+
+// 25 requests per second
+const tbf = new TokenBucket(config.rps, 1);
+log.info({ rps: config.rps }, 'Limiting source reqs/sec');
 
 // depaginate the entire array by following the links
 const depaginate = co(function* (body, options, headers) {
@@ -123,6 +133,7 @@ const retry = co(function* (fn, options) {
 // execute the request with error handling
 const execute = co(function* (url, options, headers) {
   const current = new Date();
+  yield tbf.take();
   const response = yield request(req(url, options, headers));
   const parsedUrl = parseUrl(url);
   const baseTags = [`path:${parsedUrl.pathname}`];
