@@ -42,7 +42,7 @@ const log = service.log;
 
 // 25 requests per second
 const rps = Number(config.rps) || 100;
-const tbf = new TokenBucket(rps, 1);
+const tbf = new TokenBucket(rps, 1000);
 log.info({ rps }, 'Limiting source reqs/sec');
 
 // depaginate the entire array by following the links
