@@ -27,6 +27,11 @@ function pull() {
       }
       return resource;
     })
+    .map((resource) => {
+      if (config['stripe-version']) {
+        resource.headers({ 'Stripe-Version': config['stripe-version'] });
+      }
+    })
     .map((resource) => http.fetch(resource));
 
   return Promise.all(tasks);
