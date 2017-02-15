@@ -27,10 +27,12 @@ function pull() {
       }
       return resource;
     })
-    .map((resource) => {
+    .map(function(resource) {
       if (config['stripe-version']) {
         resource.headers({ 'Stripe-Version': config['stripe-version'] });
       }
+
+      return resource;
     })
     .map((resource) => http.fetch(resource));
 
