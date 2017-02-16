@@ -28,8 +28,8 @@ function pull() {
       return resource;
     })
     .map(function(resource) {
-      if (config['stripeVersion']) {
-        resource.headers({ 'Stripe-Version': config['stripeVersion'] });
+      if (config.stripeVersion) {
+        resource.headers({ 'Stripe-Version': config.stripeVersion });
       }
       return resource;
     })
