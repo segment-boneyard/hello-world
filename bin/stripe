@@ -28,10 +28,9 @@ function pull() {
       return resource;
     })
     .map(function(resource) {
-      if (config['stripe-version']) {
-        resource.headers({ 'Stripe-Version': config['stripe-version'] });
+      if (config['stripeVersion']) {
+        resource.headers({ 'Stripe-Version': config['stripeVersion'] });
       }
-
       return resource;
     })
     .map((resource) => http.fetch(resource));
