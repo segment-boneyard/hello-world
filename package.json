@@ -1,6 +1,6 @@
 {
   "name": "source-stripe",
-  "version": "1.14.15",
+  "version": "1.14.16",
   "private": true,
   "description": "Segment source for Stripe",
   "main": "bin/stripe",
