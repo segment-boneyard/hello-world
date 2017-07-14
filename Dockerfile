@@ -1,5 +1,3 @@
-FROM segment/sources-node-v6.3:v4.14.1
-
+FROM segment/sources-node-v6.3:v4.15.1
 COPY . /src
-
 ENTRYPOINT [ "/sources", "run", "src/bin/stripe" ]
