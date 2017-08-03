@@ -111,6 +111,9 @@ func (r *Card) transform(obj api.Object) *source.SetMessage {
 		"exp_year":            obj["exp_year"],
 		"funding":             obj["funding"],
 		"name":                obj["name"],
+		"last4":               obj["last4"],
+		"dynamic_last4":       obj["dynamic_last4"],
+		"fingerprint":         obj["fingerprint"],
 		"tokenization_method": obj["tokenization_method"],
 	}
 
