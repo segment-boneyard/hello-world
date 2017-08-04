@@ -35,8 +35,8 @@ deployment:
     owner: segment-sources
     commands:
       - curl -sLu "$GH_LOGIN:" https://raw.githubusercontent.com/segmentio/scripts/master/circle/docker/sources/production-tag.sh | sh
-  v31:
-    branch: v31
+  lsp:
+    branch: lsp
     owner: segment-sources
     commands:
       - curl -sLu "$GH_LOGIN:" https://raw.githubusercontent.com/segmentio/scripts/master/circle/docker/sources/production-tag.sh | sh

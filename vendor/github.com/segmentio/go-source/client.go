@@ -1,6 +1,9 @@
 package source
 
-import "github.com/segmentio/analytics-go"
+import (
+	"github.com/segmentio/analytics-go"
+	sourcelogger "github.com/segmentio/go-source/source-logger"
+)
 
 // SetMessage is used when using BatchSet
 type SetMessage struct {
@@ -54,11 +57,16 @@ type Client interface {
 
 	// Proxies KeepAlive
 	KeepAlive() error
+
+	// Log returns the source logger instance for use
+	Log() *sourcelogger.Logger
 }
 
 // Config wraps options that can be passed to the client.
 type Config struct {
-	URL string // URL of the source-runner RPC service.
+	URL     string // URL of the source-runner RPC service.
+	Program string // source name eg. salesforce
+	Version string // source version eg. v1.0.3
 }
 
 // New creates a client instance with the given configuration.

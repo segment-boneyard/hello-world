@@ -7,7 +7,7 @@ import (
 )
 
 // PostProcessor is a function called by the downloader on each object retrieved from the API
-type PostProcessor func(ctx context.Context, obj api.Object) error
+type PostProcessor func(ctx context.Context, obj api.Object, task *Task) error
 
 // Task describes which objects
 type Task struct {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/segment-sources/stripe/api"
+	"github.com/segment-sources/stripe/resource/downloader"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -59,7 +60,7 @@ func TestListExpander(t *testing.T) {
 
 	a := assert.New(t)
 
-	err := proc(context.Background(), obj)
+	err := proc(context.Background(), obj, &downloader.Task{Collection: "customers"})
 	if !a.NoError(err) {
 		return
 	}

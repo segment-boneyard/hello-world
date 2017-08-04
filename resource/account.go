@@ -34,7 +34,10 @@ func (r *Account) StartProducer(ctx context.Context, runContext integration.RunC
 	defer close(r.errs)
 
 	// pull the primary account info
-	primaryAcct, err := downloader.RetryGetObject(ctx, r.apiClient, &api.Request{Url: "/v1/account"})
+	primaryAcct, err := downloader.RetryGetObject(ctx, r.apiClient, &api.Request{
+		Url:           "/v1/account",
+		LogCollection: r.name,
+	})
 	if err != nil {
 		r.errs <- integration.CollectionError{
 			Collection: r.name,
@@ -46,7 +49,10 @@ func (r *Account) StartProducer(ctx context.Context, runContext integration.RunC
 
 	// pull all the Stripe Connect accounts
 	d := downloader.New(r.apiClient)
-	req := &api.Request{Url: "/v1/accounts?limit=100"}
+	req := &api.Request{
+		Url:           "/v1/accounts?limit=100",
+		LogCollection: r.name,
+	}
 	task := &downloader.Task{
 		Collection: r.name,
 		Request:    req,

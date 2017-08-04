@@ -42,7 +42,8 @@ func (r *Invoice) StartProducer(ctx context.Context, runContext integration.RunC
 		return downloader.New(r.apiClient).Do(ctx, &downloader.Task{
 			Collection: r.name,
 			Request: &api.Request{
-				Url: "/v1/invoices?limit=100",
+				Url:           "/v1/invoices?limit=100",
+				LogCollection: r.name,
 			},
 			PostProcessors: []downloader.PostProcessor{
 				processors.NewListExpander("lines", r.apiClient),

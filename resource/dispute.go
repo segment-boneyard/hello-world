@@ -44,7 +44,8 @@ func (r *Dispute) StartProducer(ctx context.Context, runContext integration.RunC
 		task = &downloader.Task{
 			Collection: r.name,
 			Request: &api.Request{
-				Url: "/v1/disputes?limit=100",
+				Url:           "/v1/disputes?limit=100",
+				LogCollection: r.name,
 			},
 			Output: r.objs,
 			Errors: r.errs,

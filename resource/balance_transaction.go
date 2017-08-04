@@ -37,6 +37,7 @@ func (r *BalanceTransaction) StartProducer(ctx context.Context, runContext integ
 		Qs: url.Values{
 			"limit": []string{"100"},
 		},
+		LogCollection: r.name,
 	}
 
 	if !runContext.PreviousRunTimestamp.IsZero() {

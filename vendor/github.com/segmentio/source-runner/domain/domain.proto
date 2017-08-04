@@ -28,6 +28,9 @@ service Source {
 
     // Misc.
     rpc KeepAlive (Empty) returns (StatusResponse) {}
+
+    // Source Logs
+    rpc LogSourceEntry(LogRequest) returns (StatusResponse) {}
 }
 
 
@@ -137,6 +140,23 @@ message StatsRequest {
     repeated string tags = 3;
 }
 
+//
+// Source Logs.
+//
+
+message LogRequest {
+    string sourceId = 1;
+    int64 runId = 2;
+    string source = 3;
+    string collection = 4;
+    string level = 5;
+    int64 timestamp = 6;
+    string operation = 7;
+    string attributes = 8; // json string of map[string]interface{}
+    string id = 9;
+    string filename = 10;
+    string payload = 11;
+}
 
 //
 // Misc.

@@ -13,14 +13,14 @@ import (
 func NewListExpander(path string, apiClient api.Client) downloader.PostProcessor {
 	d := downloader.New(apiClient)
 
-	return func(ctx context.Context, obj api.Object) error {
-		return expandList(ctx, d, obj, path)
+	return func(ctx context.Context, obj api.Object, task *downloader.Task) error {
+		return expandList(ctx, d, obj, task, path)
 	}
 }
 
 // expandList is a post-processor that expands item lists inside objects
 // by downloading and appending extra items that didn't fit in the initial response
-func expandList(ctx context.Context, d *downloader.Client, obj api.Object, path string) error {
+func expandList(ctx context.Context, d *downloader.Client, obj api.Object, task *downloader.Task, path string) error {
 	target := obj
 	for _, component := range strings.Split(path, ".") {
 		if v, ok := target[component].(map[string]interface{}); ok {
@@ -66,6 +66,7 @@ func expandList(ctx context.Context, d *downloader.Client, obj api.Object, path 
 				"limit":          []string{"100"},
 				"starting_after": []string{lastSeenId},
 			},
+			LogCollection: task.Collection,
 		},
 		Output: ch,
 	})

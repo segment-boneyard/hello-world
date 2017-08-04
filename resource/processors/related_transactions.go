@@ -12,17 +12,17 @@ import (
 
 func NewRelatedTransactions(apiClient api.Client) downloader.PostProcessor {
 	d := downloader.New(apiClient)
-	return func(ctx context.Context, obj api.Object) error {
+	return func(ctx context.Context, obj api.Object, task *downloader.Task) error {
 		if tr.GetString(obj, "object") != "transfer" {
 			return nil
 		}
-		return includeRelatedTransactions(ctx, d, obj)
+		return includeRelatedTransactions(ctx, d, obj, task)
 	}
 }
 
 func NewRelatedTransactionsFromEvents(apiClient api.Client, dd dedupe.Interface) downloader.PostProcessor {
 	dl := downloader.New(apiClient)
-	return func(ctx context.Context, obj api.Object) error {
+	return func(ctx context.Context, obj api.Object, task *downloader.Task) error {
 		transfer := tr.ExtractEventPayload(obj, "transfer")
 		if transfer == nil {
 			return nil
@@ -32,12 +32,12 @@ func NewRelatedTransactionsFromEvents(apiClient api.Client, dd dedupe.Interface)
 			return nil
 		}
 
-		return includeRelatedTransactions(ctx, dl, transfer)
+		return includeRelatedTransactions(ctx, dl, transfer, task)
 	}
 }
 
 // includeRelatedTransactions is a post-processor that sets "balance_transactions" property on each transfer
-func includeRelatedTransactions(ctx context.Context, d *downloader.Client, obj api.Object) error {
+func includeRelatedTransactions(ctx context.Context, d *downloader.Client, obj api.Object, task *downloader.Task) error {
 	var transferId string
 	if transferId = tr.GetString(obj, "id"); transferId == "" {
 		return nil
@@ -61,6 +61,7 @@ func includeRelatedTransactions(ctx context.Context, d *downloader.Client, obj a
 			Qs: url.Values{
 				"transfer": []string{transferId},
 			},
+			LogCollection: task.Collection,
 		},
 		Output: ch,
 	})

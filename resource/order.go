@@ -41,7 +41,8 @@ func (r *Order) StartProducer(ctx context.Context, runContext integration.RunCon
 		return downloader.New(r.apiClient).Do(ctx, &downloader.Task{
 			Collection: r.name,
 			Request: &api.Request{
-				Url: "/v1/orders?limit=100",
+				Url:           "/v1/orders?limit=100",
+				LogCollection: r.name,
 			},
 			Output: r.objs,
 			Errors: r.errs,

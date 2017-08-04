@@ -8,7 +8,7 @@ import (
 )
 
 func NewIsDeleted(deletedEvents ...string) downloader.PostProcessor {
-	return func(ctx context.Context, obj api.Object) error {
+	return func(ctx context.Context, obj api.Object, task *downloader.Task) error {
 		return isDeleted(ctx, deletedEvents, obj)
 	}
 }

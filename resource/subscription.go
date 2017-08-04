@@ -43,9 +43,12 @@ func (r *Subscription) StartProducer(ctx context.Context, runContext integration
 	if runContext.PreviousRunTimestamp.IsZero() {
 		return downloader.New(r.apiClient).Do(ctx, &downloader.Task{
 			Collection: r.name,
-			Request:    &api.Request{Url: "/v1/subscriptions?status=all&limit=100"},
-			Output:     r.objs,
-			Errors:     r.errs,
+			Request: &api.Request{
+				Url:           "/v1/subscriptions?status=all&limit=100",
+				LogCollection: r.name,
+			},
+			Output: r.objs,
+			Errors: r.errs,
 			PostProcessors: []downloader.PostProcessor{
 				processors.NewListExpander("items", r.apiClient),
 			},

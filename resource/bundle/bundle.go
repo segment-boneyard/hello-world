@@ -74,7 +74,7 @@ func (b *ResourceBundle) eventsProducer(ctx context.Context, runContext integrat
 
 	err := downloader.New(b.apiClient).Do(ctx, tasks.MakeIncremental(
 		b,
-		"bundle",
+		"events",
 		runContext.PreviousRunTimestamp,
 		b.objs,
 		colErrors,

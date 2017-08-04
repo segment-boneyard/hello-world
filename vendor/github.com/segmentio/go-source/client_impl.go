@@ -9,8 +9,11 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/segmentio/analytics-go"
+	sourcelogger "github.com/segmentio/go-source/source-logger"
 	"github.com/segmentio/source-runner/domain"
 )
+
+const maxMsgSize = 1000 * 1000 * 250
 
 var (
 	c    *client
@@ -18,7 +21,8 @@ var (
 )
 
 type client struct {
-	client domain.SourceClient
+	client       domain.SourceClient
+	sourceLogger *sourcelogger.Logger
 }
 
 func newClient(config *Config) (*client, error) {
@@ -32,8 +36,12 @@ func newClient(config *Config) (*client, error) {
 	var err error
 	once.Do(func() {
 		var cc *grpc.ClientConn
-		cc, err = grpc.Dial(url, grpc.WithInsecure())
-		c = &client{client: domain.NewSourceClient(cc)}
+		cc, err = grpc.Dial(url, grpc.WithInsecure(), grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(maxMsgSize), grpc.MaxCallRecvMsgSize(maxMsgSize)))
+		sc := domain.NewSourceClient(cc)
+		c = &client{
+			client:       sc,
+			sourceLogger: sourcelogger.New(config.Program, config.Version, sc),
+		}
 	})
 
 	return c, err
@@ -47,10 +55,13 @@ func (c *client) Set(collection string, id string, properties map[string]interfa
 	}
 	setRequest.Properties, err = json.Marshal(properties)
 	if err != nil {
+		c.sourceLogger.Error(collection, sourcelogger.SetDispatched, err)
 		return err
 	}
 
-	_, err = c.client.Set(context.Background(), setRequest)
+	if _, err = c.client.Set(context.Background(), setRequest); err != nil {
+		c.sourceLogger.Error(collection, sourcelogger.SetDispatched, err)
+	}
 	return err
 }
 
@@ -210,4 +221,9 @@ func (c *client) StatsGauge(name string, value int64, tags []string) error {
 func (c *client) KeepAlive() error {
 	_, err := c.client.KeepAlive(context.Background(), &domain.Empty{})
 	return err
+}
+
+// Log returns source logger instance for use
+func (c *client) Log() *sourcelogger.Logger {
+	return c.sourceLogger
 }

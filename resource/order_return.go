@@ -40,7 +40,8 @@ func (r *OrderReturn) StartProducer(ctx context.Context, runContext integration.
 		task = &downloader.Task{
 			Collection: r.name,
 			Request: &api.Request{
-				Url: "/v1/order_returns?limit=100",
+				Url:           "/v1/order_returns?limit=100",
+				LogCollection: r.name,
 			},
 			Output: r.objs,
 			Errors: r.errs,

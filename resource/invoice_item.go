@@ -43,7 +43,8 @@ func (r *InvoiceItem) StartProducer(ctx context.Context, runContext integration.
 		task = &downloader.Task{
 			Collection: r.name,
 			Request: &api.Request{
-				Url: "/v1/invoiceitems?limit=100",
+				Url:           "/v1/invoiceitems?limit=100",
+				LogCollection: r.name,
 			},
 			Output: r.objs,
 			Errors: r.errs,

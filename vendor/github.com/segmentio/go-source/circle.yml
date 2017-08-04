@@ -1,8 +1,24 @@
+machine:
+  environment:
+    GOPATH: "$HOME/go"
+    PATH: "/usr/local/go/bin:$GOPATH/bin:$PATH"
+    ROOTPATH: "$GOPATH/src/github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME"
+    GOVERSION: "1.8.3"
+
 checkout:
   post:
-    - mkdir -p ${GOPATH%%:*}/src/github.com/${CIRCLE_PROJECT_USERNAME}
-    - ln -sf $(pwd) ${GOPATH%%:*}/src/github.com/${CIRCLE_PROJECT_USERNAME}/$(basename $(pwd))
+    - mkdir -p $(dirname $ROOTPATH)
+    - ln -sf $(pwd) $(dirname $ROOTPATH)
 
+dependencies:
+  pre:
+    - go get github.com/kardianos/govendor
+
+    # Install Go ($GOVERSION)
+    - wget "https://storage.googleapis.com/golang/go$GOVERSION.linux-amd64.tar.gz"
+    - sudo tar -C /usr/local -xzf "go$GOVERSION.linux-amd64.tar.gz"
+  override:
+    - cd $ROOTPATH && govendor sync
 test:
   override:
-    - make test-ci
+    - cd $ROOTPATH && govendor test -v +local

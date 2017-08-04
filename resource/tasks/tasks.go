@@ -45,6 +45,7 @@ func MakeIncremental(res integration.Resource, collection string, previousRunTim
 				"types[]":     allDesiredEvents,
 				"created[gt]": []string{fmt.Sprintf("%d", previousRunTimestamp.Add(-time.Hour).Unix())},
 			},
+			LogCollection: collection,
 		},
 		PostProcessors: postProcessors,
 		Output:         ch,

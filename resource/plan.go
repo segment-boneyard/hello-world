@@ -44,7 +44,8 @@ func (r *Plan) StartProducer(ctx context.Context, runContext integration.RunCont
 		return downloader.New(r.apiClient).Do(ctx, &downloader.Task{
 			Collection: r.name,
 			Request: &api.Request{
-				Url: "/v1/plans?limit=100",
+				Url:           "/v1/plans?limit=100",
+				LogCollection: r.name,
 			},
 			Output: r.objs,
 			Errors: r.errs,

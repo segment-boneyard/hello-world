@@ -45,7 +45,7 @@ func (d *Client) Do(ctx context.Context, task *Task) error {
 				procCtx, _ := urlog.GetContextualLogger(ctx, nil, log.Fields{
 					"processor": reflect.TypeOf(p).String(),
 				})
-				if err := p(procCtx, obj); err != nil {
+				if err := p(procCtx, obj, task); err != nil {
 					if task.Collection != "" && task.Errors != nil {
 						task.Errors <- integration.CollectionError{
 							Collection: task.Collection,
@@ -64,9 +64,10 @@ func (d *Client) Do(ctx context.Context, task *Task) error {
 
 		if res.HasMore && lastSeenId != "" {
 			next = &api.Request{
-				Url:     req.Url,
-				Qs:      url.Values{},
-				Headers: req.Headers,
+				Url:           req.Url,
+				Qs:            url.Values{},
+				Headers:       req.Headers,
+				LogCollection: task.Collection,
 			}
 			for key, value := range req.Qs {
 				next.Qs[key] = value

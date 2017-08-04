@@ -14,6 +14,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -82,22 +83,30 @@ func main() {
 
 	// initialize api client
 	apiClient := api.NewClient(&api.ClientOptions{
-		Secret:     cfg.Secret,
-		BaseUrl:    "https://api.stripe.com",
-		HttpClient: &http.Client{Timeout: time.Minute * 5},
-		MaxRps:     cfg.Rps,
+		Secret:       cfg.Secret,
+		BaseUrl:      "https://api.stripe.com",
+		HttpClient:   &http.Client{Timeout: time.Minute * 5},
+		MaxRps:       cfg.Rps,
+		SourceLogger: sourceClient.Log(),
 	})
 
 	if cfg.Secret == "" {
 		errorMsg := "Invalid credentials (no credentials found)"
 		log.Error(errorMsg)
+		sourceClient.Log().Error("", "authentication", errors.New(errorMsg))
 		sourceClient.ReportError(errorMsg, "")
 		return
 	}
-	if _, err := apiClient.GetList(context.Background(), &api.Request{Url: "/v1/charges?limit=1"}); err != nil {
+
+	testReq := &api.Request{
+		Url:           "/v1/charges?limit=1",
+		LogCollection: "charges",
+	}
+	if _, err := apiClient.GetList(context.Background(), testReq); err != nil {
 		if api.IsErrorAuthRelated(err) {
 			errorMsg := "Invalid credentials"
 			log.Error(errorMsg)
+			sourceClient.Log().Error("", "authentication", errors.New(errorMsg))
 			sourceClient.ReportError(errorMsg, "")
 			return
 		}

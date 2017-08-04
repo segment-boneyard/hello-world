@@ -2,16 +2,19 @@ package api
 
 import (
 	"context"
+	"github.com/segmentio/go-source/source-logger"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 type Object map[string]interface{}
 
 type Request struct {
-	Url     string
-	Qs      url.Values
-	Headers http.Header
+	Url           string
+	Qs            url.Values
+	Headers       http.Header
+	LogCollection string
 }
 
 type ObjectList struct {
@@ -35,8 +38,14 @@ type listResponse struct {
 }
 
 type ClientOptions struct {
-	Secret     string
-	BaseUrl    string
-	HttpClient HttpClient
-	MaxRps     int
+	Secret       string
+	BaseUrl      string
+	HttpClient   HttpClient
+	MaxRps       int
+	SourceLogger SourceLogger
+}
+
+type SourceLogger interface {
+	RequestSent(collection string, query string, metadata sourcelogger.Metadata)
+	ResponseReceived(collection string, query string, metadata sourcelogger.Metadata, latency time.Duration, payload interface{})
 }

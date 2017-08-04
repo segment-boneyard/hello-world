@@ -51,7 +51,8 @@ func (r *Transfer) StartProducer(ctx context.Context, runContext integration.Run
 		return downloader.New(r.apiClient).Do(ctx, &downloader.Task{
 			Collection: r.name,
 			Request: &api.Request{
-				Url: "/v1/transfers?limit=100",
+				Url:           "/v1/transfers?limit=100",
+				LogCollection: r.name,
 			},
 			PostProcessors: postProcessors,
 			Output:         r.objs,

@@ -3,11 +3,13 @@ package integration
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/apex/log"
 	"github.com/pkg/errors"
 	"github.com/segment-sources/stripe/api"
 	"github.com/segmentio/go-source"
 	"github.com/segmentio/ur-log"
+	"reflect"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -22,7 +24,7 @@ type Dispatcher struct {
 	startedAt           time.Time
 	producerFailures    int32
 	collectionErrors    int32
-	RunContext          RunContext
+	runContext          RunContext
 }
 
 const contextVersion = 1
@@ -80,8 +82,10 @@ func (d *Dispatcher) runProducers(ctx context.Context) *sync.WaitGroup {
 		producerWg.Add(1)
 		go func(res Resource) {
 			defer producerWg.Done()
-			if err := res.StartProducer(ctx, d.RunContext); err != nil {
+			if err := res.StartProducer(ctx, d.runContext); err != nil {
 				atomic.AddInt32(&d.producerFailures, 1)
+				operation := fmt.Sprintf("running producer %s", reflect.TypeOf(res).String())
+				d.sourceClient.Log().Error("", operation, err)
 				log.WithError(err).Error("producer failed")
 			}
 		}(res)
@@ -91,6 +95,7 @@ func (d *Dispatcher) runProducers(ctx context.Context) *sync.WaitGroup {
 			for err := range res.CollectionErrors() {
 				atomic.AddInt32(&d.collectionErrors, 1)
 				d.sourceClient.ReportError(err.Message, err.Collection)
+				d.sourceClient.Log().Error(err.Collection, "syncing colleciton", errors.New(err.Message))
 			}
 		}(res)
 	}
@@ -120,6 +125,7 @@ func (d *Dispatcher) initContext(ctx context.Context) error {
 
 	doc, err := d.sourceClient.GetContext(source.GetContextOptions{AllowFailed: false})
 	if err != nil {
+		d.sourceClient.Log().Error("", "loading context", err)
 		return urlog.WrapError(ctx, err, "GetContext call failed")
 	}
 
@@ -130,6 +136,7 @@ func (d *Dispatcher) initContext(ctx context.Context) error {
 
 	value := RunContext{}
 	if err := json.Unmarshal(doc, &value); err != nil {
+		d.sourceClient.Log().Error("", "decoding context", err)
 		log.WithError(err).WithField("context", string(doc)).Error("failed to unmarshal context")
 		return urlog.WrapError(ctx, err, "unmarshalling context failed")
 	}
@@ -152,7 +159,7 @@ func (d *Dispatcher) initContext(ctx context.Context) error {
 		return nil
 	}
 
-	d.RunContext = value
+	d.runContext = value
 	return nil
 }
 
@@ -164,6 +171,7 @@ func (d *Dispatcher) saveContext(ctx context.Context) error {
 
 	doc, _ := json.Marshal(value)
 	if err := d.sourceClient.SetContext(doc); err != nil {
+		d.sourceClient.Log().Error("", "saving context", err)
 		return urlog.WrapError(ctx, err, "SetContext call failed")
 	}
 

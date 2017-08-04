@@ -8,6 +8,7 @@ import (
 	"github.com/apex/log"
 	"github.com/nu7hatch/gouuid"
 	"github.com/pkg/errors"
+	"github.com/segmentio/go-source/source-logger"
 	"github.com/segmentio/ur-log"
 	"net/http"
 	"time"
@@ -16,10 +17,11 @@ import (
 const stripeApiVersion = "2016-07-06"
 
 type clientImpl struct {
-	httpClient HttpClient
-	baseUrl    string
-	secret     string
-	throttler  *Throttler
+	httpClient   HttpClient
+	baseUrl      string
+	secret       string
+	throttler    *Throttler
+	sourceLogger SourceLogger
 }
 
 func (c *clientImpl) GetList(ctx context.Context, req *Request) (*ObjectList, error) {
@@ -95,8 +97,10 @@ func (c *clientImpl) get(ctx context.Context, req *Request, output interface{}) 
 
 	c.throttler.Use()
 
+	ts := time.Now()
 	logger.Info("http request")
 	resp, err := c.httpClient.Do(httpReq)
+	c.sourceLogger.RequestSent(req.LogCollection, httpReq.URL.String(), sourcelogger.Metadata{"uuid": uv4.String()})
 	if err != nil {
 		return urlog.WrapError(ctx, err, "error performing request")
 	}
@@ -107,12 +111,20 @@ func (c *clientImpl) get(ctx context.Context, req *Request, output interface{}) 
 		return urlog.WrapError(ctx, err, "error reading response")
 	}
 
+	headersBuffer := &bytes.Buffer{}
+	resp.Header.Write(headersBuffer)
+	logMetadata := sourcelogger.Metadata{
+		"uuid":    uv4.String(),
+		"status":  resp.Status,
+		"headers": headersBuffer.String(),
+	}
+	c.sourceLogger.ResponseReceived(req.LogCollection, httpReq.URL.String(), logMetadata, time.Now().Sub(ts), buffer.String())
+
 	ctx, logger = urlog.GetContextualLogger(ctx, logger, log.Fields{
 		"response": log.Fields{
-			"headers":     resp.Header,
-			"status_code": resp.StatusCode,
-			"status":      resp.Status,
-			"body":        buffer.String(),
+			"headers": resp.Header,
+			"status":  resp.Status,
+			"body":    buffer.String(),
 		},
 	})
 	logger.Debug("http response")
@@ -146,9 +158,10 @@ func NewClient(opts *ClientOptions) Client {
 	}
 
 	return &clientImpl{
-		httpClient: opts.HttpClient,
-		baseUrl:    opts.BaseUrl,
-		secret:     opts.Secret,
-		throttler:  NewThrottler(opts.MaxRps, time.Second),
+		httpClient:   opts.HttpClient,
+		baseUrl:      opts.BaseUrl,
+		secret:       opts.Secret,
+		throttler:    NewThrottler(opts.MaxRps, time.Second),
+		sourceLogger: opts.SourceLogger,
 	}
 }

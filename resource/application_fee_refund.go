@@ -75,9 +75,9 @@ func (r *ApplicationFeeRefund) transform(obj api.Object) *source.SetMessage {
 	}
 
 	properties := map[string]interface{}{
-		"amount":                 obj["amount"],
-		"currency":               obj["currency"],
-		"fee_id":                 obj["fee"],
+		"amount":   obj["amount"],
+		"currency": obj["currency"],
+		"fee_id":   obj["fee"],
 	}
 
 	if metadata := tr.GetMap(obj, "metadata"); metadata != nil {
