@@ -8,9 +8,11 @@ import (
 	"github.com/apex/log"
 	"github.com/nu7hatch/gouuid"
 	"github.com/pkg/errors"
+	"github.com/segmentio/go-source"
 	"github.com/segmentio/go-source/source-logger"
 	"github.com/segmentio/ur-log"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -21,6 +23,7 @@ type clientImpl struct {
 	baseUrl      string
 	secret       string
 	throttler    *Throttler
+	sourceClient source.Client
 	sourceLogger SourceLogger
 }
 
@@ -99,6 +102,11 @@ func (c *clientImpl) get(ctx context.Context, req *Request, output interface{}) 
 
 	ts := time.Now()
 	logger.Info("http request")
+	metricTags := []string{}
+	if projectId := os.Getenv("SEGMENT_SOURCE_ID"); projectId != "" {
+		metricTags = append(metricTags, fmt.Sprintf("project_id:%s", projectId))
+	}
+	c.sourceClient.StatsIncrement("stripe.requests", 1, metricTags)
 	resp, err := c.httpClient.Do(httpReq)
 	c.sourceLogger.RequestSent(req.LogCollection, httpReq.URL.String(), sourcelogger.Metadata{"uuid": uv4.String()})
 	if err != nil {
@@ -111,6 +119,15 @@ func (c *clientImpl) get(ctx context.Context, req *Request, output interface{}) 
 		return urlog.WrapError(ctx, err, "error reading response")
 	}
 
+	duration := time.Now().Sub(ts)
+	metricTags = append(metricTags,
+		fmt.Sprintf("status_code:%d", resp.StatusCode),
+		fmt.Sprintf("status_code_bucket:%dxx", resp.StatusCode/100),
+	)
+	c.sourceClient.StatsIncrement("stripe.responses", 1, metricTags)
+	c.sourceClient.StatsHistogram("stripe.response.payload_size", int64(buffer.Len()), metricTags)
+	c.sourceClient.StatsHistogram("stripe.response.latency", duration.Nanoseconds()/1000000, metricTags)
+
 	headersBuffer := &bytes.Buffer{}
 	resp.Header.Write(headersBuffer)
 	logMetadata := sourcelogger.Metadata{
@@ -118,7 +135,7 @@ func (c *clientImpl) get(ctx context.Context, req *Request, output interface{}) 
 		"status":  resp.Status,
 		"headers": headersBuffer.String(),
 	}
-	c.sourceLogger.ResponseReceived(req.LogCollection, httpReq.URL.String(), logMetadata, time.Now().Sub(ts), buffer.String())
+	c.sourceLogger.ResponseReceived(req.LogCollection, httpReq.URL.String(), logMetadata, duration, buffer.String())
 
 	ctx, logger = urlog.GetContextualLogger(ctx, logger, log.Fields{
 		"response": log.Fields{
@@ -162,6 +179,7 @@ func NewClient(opts *ClientOptions) Client {
 		baseUrl:      opts.BaseUrl,
 		secret:       opts.Secret,
 		throttler:    NewThrottler(opts.MaxRps, time.Second),
-		sourceLogger: opts.SourceLogger,
+		sourceClient: opts.SourceClient,
+		sourceLogger: opts.SourceClient.Log(),
 	}
 }

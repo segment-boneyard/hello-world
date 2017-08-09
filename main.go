@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/apex/log"
 	"github.com/apex/log/handlers/json"
+	"github.com/pkg/errors"
 	"github.com/segment-sources/stripe/api"
 	"github.com/segment-sources/stripe/integration"
 	"github.com/segment-sources/stripe/resource"
@@ -14,7 +15,6 @@ import (
 	"os"
 	"strings"
 	"time"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -87,7 +87,7 @@ func main() {
 		BaseUrl:      "https://api.stripe.com",
 		HttpClient:   &http.Client{Timeout: time.Minute * 5},
 		MaxRps:       cfg.Rps,
-		SourceLogger: sourceClient.Log(),
+		SourceClient: sourceClient,
 	})
 
 	if cfg.Secret == "" {

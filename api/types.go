@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"github.com/segmentio/go-source"
 	"github.com/segmentio/go-source/source-logger"
 	"net/http"
 	"net/url"
@@ -42,7 +43,7 @@ type ClientOptions struct {
 	BaseUrl      string
 	HttpClient   HttpClient
 	MaxRps       int
-	SourceLogger SourceLogger
+	SourceClient source.Client
 }
 
 type SourceLogger interface {
