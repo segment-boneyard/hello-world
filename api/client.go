@@ -103,8 +103,10 @@ func (c *clientImpl) get(ctx context.Context, req *Request, output interface{}) 
 	ts := time.Now()
 	logger.Info("http request")
 	metricTags := []string{}
-	if projectId := os.Getenv("SEGMENT_SOURCE_ID"); projectId != "" {
-		metricTags = append(metricTags, fmt.Sprintf("project_id:%s", projectId))
+	workspaceSlug := os.Getenv("SEGMENT_WORKSPACE_SLUG")
+	projectSlug := os.Getenv("SEGMENT_SOURCE_SLUG")
+	if projectSlug != "" && workspaceSlug != "" {
+		metricTags = append(metricTags, fmt.Sprintf("project:%s/%s", workspaceSlug, projectSlug))
 	}
 	c.sourceClient.StatsIncrement("stripe.requests", 1, metricTags)
 	resp, err := c.httpClient.Do(httpReq)
