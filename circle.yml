@@ -28,6 +28,7 @@ test:
       go.build.args='-o ./bin/stripe'
       go.get='true'
       docker.image='segment/source-stripe'
+      ecr.repository='source-stripe'
 
 deployment:
   master:
