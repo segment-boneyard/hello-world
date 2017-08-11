@@ -7,8 +7,10 @@ machine:
 dependencies:
   pre:
     - docker login -e ${DOCKER_EMAIL} -u ${DOCKER_USER} -p ${DOCKER_PASS}
+    - sudo pip install awscli==1.11.76
+    - $(aws ecr get-login --region $AWS_REGION)
   override:
-    - docker pull segment/golang-private:latest
+    - docker pull $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/golang-private:latest
 
 test:
   override:
@@ -24,7 +26,7 @@ test:
       --volume ${GOPATH%%:*}/src:/go/src
       --volume ${PWD}:/go/src/github.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}
       --workdir /go/src/github.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}
-      segment/golang-private:latest
+      $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/golang-private:latest
       go.build.args='-o ./bin/stripe'
       go.get='true'
       docker.image='segment/source-stripe'
