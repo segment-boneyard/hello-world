@@ -19,7 +19,7 @@ import (
 
 const (
 	Program = "stripe"
-	Version = "2.2.8"
+	Version = "2.2.10"
 )
 
 func initLogger() {
