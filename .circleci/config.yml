@@ -1,0 +1,61 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: segment/sources-build:v1.0.0
+        auth:
+          username: $DOCKER_USER
+          password: $DOCKER_PASS
+    working_directory: /go/src/github.com/segment-sources/stripe/
+    steps:
+      - checkout
+      - run:
+          name: Running tests
+          command: govendor test -race +local
+      - setup_remote_docker:
+          version: 17.05.0-ce
+          reusable: true
+          exclusive: false
+      - run:
+          name: Logging into docker
+          command: |
+            if [ -n "$(git tag --points-at HEAD)" ]; then
+              docker login -u $DOCKER_USER -p $DOCKER_PASS
+              $(aws ecr get-login --no-include-email --region $AWS_REGION)
+            else
+              echo "skipping (no tag)"
+            fi
+      - run:
+          name: Building docker image
+          environment:
+            IMAGE: source-stripe
+          command: |
+            tag=$(git tag --points-at HEAD)
+            if [ -n "$tag" ]; then
+              ECR=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+              sed "s/\${ECR}/$ECR/g" Dockerfile > Dockerfile.tmp
+              docker build -t $ECR/$IMAGE:$tag -f Dockerfile.tmp .
+            else
+              echo "skipping (no tag)"
+            fi
+      - run:
+          name: Pushing docker image
+          environment:
+            IMAGE: source-stripe
+          command: |
+            tag=$(git tag --points-at HEAD)
+            if [ -n "$tag" ]; then
+              ECR=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+              docker push $ECR/$IMAGE:$tag
+            else
+              echo "skipping (no tag)"
+            fi
+      - run:
+          name: Deploying to production
+          command: |
+            tag=$(git tag --points-at HEAD)
+            if [ -n "$tag" ]; then
+              curl -sLu "$GH_LOGIN:" https://raw.githubusercontent.com/segmentio/scripts/master/circle/docker/sources/production.sh | sh
+            else
+              echo "skipping (no tag)"
+            fi
