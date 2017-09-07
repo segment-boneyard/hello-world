@@ -22,11 +22,11 @@ type BalanceTransaction struct {
 }
 
 func (r *BalanceTransaction) DesiredObjects() []string {
-	return []string{"balance_transaction", "transfer"}
+	return []string{"balance_transaction"}
 }
 
 func (r *BalanceTransaction) DesiredEvents() []string {
-	return transferEvents
+	return nil
 }
 
 func (r *BalanceTransaction) StartProducer(ctx context.Context, runContext integration.RunContext) error {
@@ -63,14 +63,8 @@ func (r *BalanceTransaction) StartConsumer(ctx context.Context, ch <-chan api.Ob
 	defer close(r.msgs)
 	for obj := range ch {
 		switch tr.GetString(obj, "object") {
-		case "event":
-			if payload := tr.ExtractEventPayload(obj, "transfer"); payload != nil {
-				r.consumeTransfer(payload, true)
-			}
 		case "balance_transaction":
 			r.consumeTransaction(obj, false)
-		case "transfer":
-			r.consumeTransfer(obj, false)
 		}
 	}
 }
@@ -78,22 +72,6 @@ func (r *BalanceTransaction) StartConsumer(ctx context.Context, ch <-chan api.Ob
 func (r *BalanceTransaction) consumeTransaction(obj api.Object, fromEvent bool) {
 	if msg := r.transform(obj); msg != nil {
 		r.msgs <- *msg
-	}
-}
-
-func (r *BalanceTransaction) consumeTransfer(obj api.Object, fromEvent bool) {
-	var transferId string
-	if transferId = tr.GetString(obj, "id"); transferId == "" {
-		return
-	}
-
-	for _, obj := range tr.GetMapList(obj, "balance_transactions") {
-		newobj := api.Object{}
-		for k, v := range obj {
-			newobj[k] = v
-		}
-		newobj["transfer_id"] = transferId
-		r.consumeTransaction(newobj, fromEvent)
 	}
 }
 
@@ -114,6 +92,7 @@ func (r *BalanceTransaction) transform(obj api.Object) *source.SetMessage {
 		"source":      obj["source"],
 	}
 
+	// transferId is set by RelatedTransactions processor in "transfers" resource if this option is enabled
 	if transferId := tr.GetString(obj, "transfer_id"); transferId != "" {
 		properties["transfer_id"] = transferId
 	}

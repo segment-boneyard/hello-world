@@ -2,6 +2,7 @@ package processors
 
 import (
 	"context"
+	"github.com/apex/log"
 	"github.com/segment-sources/stripe/api"
 	"github.com/segment-sources/stripe/resource/dedupe"
 	"github.com/segment-sources/stripe/resource/downloader"
@@ -16,7 +17,7 @@ func NewRelatedTransactions(apiClient api.Client) downloader.PostProcessor {
 		if tr.GetString(obj, "object") != "transfer" {
 			return nil
 		}
-		return includeRelatedTransactions(ctx, d, obj, task)
+		return fetchRelatedTransactions(ctx, d, obj, task)
 	}
 }
 
@@ -32,18 +33,19 @@ func NewRelatedTransactionsFromEvents(apiClient api.Client, dd dedupe.Interface)
 			return nil
 		}
 
-		return includeRelatedTransactions(ctx, dl, transfer, task)
+		return fetchRelatedTransactions(ctx, dl, transfer, task)
 	}
 }
 
-// includeRelatedTransactions is a post-processor that sets "balance_transactions" property on each transfer
-func includeRelatedTransactions(ctx context.Context, d *downloader.Client, obj api.Object, task *downloader.Task) error {
+// fetchRelatedTransactions is a post-processor that downloads balance transactions related to a transfer object,
+// sets transfer_id property on the transactions and sends them to the task's output channel
+func fetchRelatedTransactions(ctx context.Context, d *downloader.Client, obj api.Object, task *downloader.Task) error {
 	var transferId string
 	if transferId = tr.GetString(obj, "id"); transferId == "" {
 		return nil
 	}
 
-	transactions := []interface{}{}
+	transactionCount := 0
 
 	ch := make(chan api.Object)
 	wg := sync.WaitGroup{}
@@ -51,7 +53,9 @@ func includeRelatedTransactions(ctx context.Context, d *downloader.Client, obj a
 	go func() {
 		defer wg.Done()
 		for tx := range ch {
-			transactions = append(transactions, map[string]interface{}(tx))
+			tx["transfer_id"] = transferId
+			task.Output <- tx
+			transactionCount++
 		}
 	}()
 
@@ -69,8 +73,10 @@ func includeRelatedTransactions(ctx context.Context, d *downloader.Client, obj a
 	close(ch)
 	wg.Wait()
 
-	if err == nil {
-		obj["balance_transactions"] = transactions
+	if transactionCount > 0 {
+		logger := log.WithFields(log.Fields{"transaction_count": transactionCount, "transfer_id": transferId})
+		logger.Info("Published additional transactions for a transfer")
 	}
+
 	return err
 }
