@@ -53,8 +53,12 @@ func fetchRelatedTransactions(ctx context.Context, d *downloader.Client, obj api
 	go func() {
 		defer wg.Done()
 		for tx := range ch {
-			tx["transfer_id"] = transferId
-			task.Output <- tx
+			newTx := api.Object{}
+			for k, v := range tx {
+				newTx[k] = v
+			}
+			newTx["transfer_id"] = transferId
+			task.Output <- newTx
 			transactionCount++
 		}
 	}()
