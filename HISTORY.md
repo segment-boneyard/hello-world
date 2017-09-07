@@ -1,4 +1,9 @@
 
+v2.4.1 / 2017-09-07
+===================
+
+  * Fetch transactions via transfers in a memory-scalable way (#63)
+
 v2.3.1 / 2017-08-29
 ===================
 
