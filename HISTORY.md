@@ -1,4 +1,9 @@
 
+v2.4.2 / 2017-09-07
+===================
+
+  * Don't modify objects received from the downloader
+
 v2.4.1 / 2017-09-07
 ===================
 
