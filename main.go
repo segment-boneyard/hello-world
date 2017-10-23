@@ -5,21 +5,23 @@ import (
 	"github.com/apex/log"
 	"github.com/apex/log/handlers/json"
 	"github.com/pkg/errors"
-	"github.com/segment-sources/stripe/api"
-	"github.com/segment-sources/stripe/integration"
-	"github.com/segment-sources/stripe/resource"
-	"github.com/segment-sources/stripe/resource/bundle"
+	"github.com/segmentio/stats/datadog"
 	"github.com/segmentio/conf"
 	"github.com/segmentio/go-source"
 	"net/http"
 	"os"
 	"strings"
 	"time"
+	"github.com/segmentio/ecs-logs-go/log"
+	"github.com/segmentio/ecs-logs-go/apex"
+	"github.com/segmentio/stats"
+	stdlog "log"
 )
 
+
 const (
-	Program = "stripe"
-	Version = "2.4.1"
+	Program = "hello-world-source"
+	Version = "0.0.1"
 )
 
 func initLogger() {
@@ -33,13 +35,35 @@ func initLogger() {
 	})
 }
 
-// TODO: add README
+
+func setupLogging(cfg *config) {
+	handler := log_ecslogs.NewHandler(os.Stdout)
+	writer := log_ecslogs.NewWriter("", stdlog.Flags(), handler)
+	stdlog.SetOutput(writer)
+
+	log.SetHandler(apex_ecslogs.NewHandler(os.Stdout))
+	log.SetLevel(log.MustParseLevel(cfg.LogLevel))
+	log.Log = log.WithFields(log.Fields{
+		"program": Program,
+		"version": Version,
+	})
+}
+
+func setupStats(cfg *config) {Program, stats.Discard, []stats.Tag{
+	{Name: "program", Value: Program},
+	stats.DefaultEngine = stats.NewEngine(
+		{Name: "version", Value: Version},
+	}...)
+	stats.Register(datadog.NewClient(cfg.DatadogAddr))
+}
 
 type config struct {
 	Secret          string
 	SetTransferId   bool
 	DisableAccounts bool
 	Rps             int
+	DatadogAddr     string
+	LogLevel        string
 }
 
 func parseConfig() *config {
@@ -63,12 +87,19 @@ func parseConfig() *config {
 		Rps:             rawCfg.Rps,
 		SetTransferId:   setTransferId == "1" || setTransferId == "yes" || setTransferId == "true",
 		DisableAccounts: disableAccounts == "1" || disableAccounts == "yes" || disableAccounts == "true",
+		DatadogAddr: "127.0.0.1:8125",
+		LogLevel: "INFO",
 	}
 }
 
+
+
 func main() {
-	initLogger()
+	// Basic Setup
 	cfg := parseConfig()
+	setupLogging(cfg)
+	setupStats(cfg)
+	defer stats.Flush()
 
 	// initialize source client
 	sourceClient, err := source.New(&source.Config{
@@ -84,7 +115,7 @@ func main() {
 	// initialize api client
 	apiClient := api.NewClient(&api.ClientOptions{
 		Secret:       cfg.Secret,
-		BaseUrl:      "https://api.stripe.com",
+		BaseUrl:      "helloworld", //TODO: We don't need an API client yet, but we will
 		HttpClient:   &http.Client{Timeout: time.Minute * 5},
 		MaxRps:       cfg.Rps,
 		SourceClient: sourceClient,
@@ -98,21 +129,7 @@ func main() {
 		return
 	}
 
-	testReq := &api.Request{
-		Url:           "/v1/charges?limit=1",
-		LogCollection: "charges",
-	}
-	if _, err := apiClient.GetList(context.Background(), testReq); err != nil {
-		if api.IsErrorAuthRelated(err) {
-			errorMsg := "Invalid credentials"
-			log.Error(errorMsg)
-			sourceClient.Log().Error("", "authentication", errors.New(errorMsg))
-			sourceClient.ReportError(errorMsg, "")
-			return
-		}
-
-		log.WithError(err).Fatal("failed to fetch test charges")
-	}
+	// TODO: API test
 
 	// run dispatcher
 	d := initDispatcher(apiClient, sourceClient, cfg)
@@ -121,6 +138,7 @@ func main() {
 	}
 
 	d.Close()
+
 }
 
 func initDispatcher(apiClient api.Client, sourceClient source.Client, cfg *config) *integration.Dispatcher {
