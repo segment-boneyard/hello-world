@@ -1,6 +1,6 @@
-# @segment/source-stripe
+# @segment-source/hello-world
 
-Stripe data source for Segment.
+Hello, World data source for Segment.
 
 ## Requirements
 
@@ -11,7 +11,7 @@ Stripe data source for Segment.
 This changes, it's best *not* to trust this README and verify in the source.
 
 ## Usage
-  `stripe [-h] [-help] [options...]`
+  `hello-world [-h] [-help] [options...]`
 
 ### Options
   `-disable-accounts string`
