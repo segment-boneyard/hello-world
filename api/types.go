@@ -34,7 +34,7 @@ type HttpClient interface {
 
 type listResponse struct {
 	Object  string   `json:"object"`
-	Data    []Object `json:"data"`
+	Data    string `json:"message"`
 	HasMore bool     `json:"has_more"`
 }
 
