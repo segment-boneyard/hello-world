@@ -1,0 +1,169 @@
+// compiles with https://github.com/grpc/homebrew-grpc
+
+syntax = "proto3";
+
+package domain;
+
+service Source {
+    // API Proxy
+    rpc Set (SetRequest) returns (StatusResponse) {}
+    rpc Track (TrackRequest) returns (StatusResponse) {}
+    rpc Identify (IdentifyRequest) returns (StatusResponse) {}
+    rpc Group (GroupRequest) returns (StatusResponse) {}
+
+    // Context
+    rpc GetContext (GetContextRequest) returns (GetContextResponse) {}
+    rpc StoreContext (StoreContextRequest) returns (Empty) {}
+    rpc GetContextIntoFile (GetContextIntoFileRequest) returns (GetContextIntoFileResponse) {}
+    rpc StoreContextFromFile (StoreContextFromFileRequest) returns (Empty) {}
+
+    // Reports
+    rpc ReportError (ReportErrorRequest) returns (StatusResponse) {}
+    rpc ReportWarning (ReportWarningRequest) returns (StatusResponse) {}
+
+    // Stats
+    rpc StatsIncrement (StatsRequest) returns (StatusResponse) {}
+    rpc StatsHistogram (StatsRequest) returns (StatusResponse) {}
+    rpc StatsGauge (StatsRequest) returns (StatusResponse) {}
+
+    // Misc.
+    rpc KeepAlive (Empty) returns (StatusResponse) {}
+
+    // Source Logs
+    rpc LogSourceEntry(LogRequest) returns (StatusResponse) {}
+}
+
+
+//
+// API Proxy
+//
+
+// Track
+message TrackRequest {
+    bytes context = 1;
+    bytes integrations = 2;
+    bytes properties = 3;
+    string anonymousId = 4;
+    string userId = 5;
+    string event = 6;
+    string messageId = 7;
+    string timestamp = 8;
+}
+
+// Identify
+message IdentifyRequest {
+    bytes context = 1;
+    bytes integrations = 2;
+    bytes traits = 3;
+    string anonymousId = 4;
+    string userId = 5;
+    string messageId = 6;
+    string timestamp = 8;
+}
+
+// Group
+message GroupRequest {
+    bytes context = 1;
+    bytes integrations = 2;
+    bytes traits = 3;
+    string anonymousId = 4;
+    string userId = 5;
+    string groupId = 6;
+    string messageId = 7;
+    string timestamp = 8;
+}
+
+// Set
+message SetRequest {
+    string collection = 1;
+    string id = 2;
+    bytes properties = 3;
+}
+
+
+//
+// Context
+//
+
+// GetContext
+message GetContextRequest {
+  bool allowFailed = 1;
+}
+
+message GetContextResponse {
+  bytes data = 1;
+}
+
+message GetContextIntoFileRequest {
+  bool allowFailed = 1;
+}
+
+message GetContextIntoFileResponse {
+  string filename = 1;
+}
+
+// StoreContext
+message StoreContextRequest {
+    bytes payload = 1;
+}
+
+// StoreContext
+message StoreContextFromFileRequest {
+    string filename = 1;
+}
+
+//
+// Reports
+//
+
+// ReportError
+message ReportErrorRequest {
+    string collection = 1;
+    string message = 3;
+}
+
+// ReportWarning
+message ReportWarningRequest {
+    string collection = 1;
+    string message = 3;
+}
+
+
+//
+// Stats
+//
+
+// StatsIncrement, StatsHistogram, StatsGauge
+message StatsRequest {
+    string name = 1;
+    int64 value = 2;
+    repeated string tags = 3;
+}
+
+//
+// Source Logs.
+//
+
+message LogRequest {
+    string sourceId = 1;
+    int64 runId = 2;
+    string source = 3;
+    string collection = 4;
+    string level = 5;
+    int64 timestamp = 6;
+    string operation = 7;
+    string attributes = 8; // json string of map[string]interface{}
+    string id = 9;
+    string filename = 10;
+    string payload = 11;
+}
+
+//
+// Misc.
+//
+
+message StatusResponse {
+    bool success = 1;
+}
+
+message Empty {}
