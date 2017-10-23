@@ -11,12 +11,11 @@ import (
 	"github.com/segmentio/go-source"
 	"github.com/segmentio/go-source/source-logger"
 	"github.com/segmentio/ur-log"
-	"net/http"
 	"os"
 	"time"
 )
 
-const stripeApiVersion = "2016-07-06"
+const helloWorldApiVersion = "2016-07-06"
 
 type clientImpl struct {
 	httpClient   HttpClient
@@ -52,39 +51,10 @@ func (c *clientImpl) GetObject(ctx context.Context, req *Request) (Object, error
 	return output, nil
 }
 
-func (c *clientImpl) prepareRequest(req *Request) (*http.Request, error) {
-	url := req.Url
-	if url[0] == '/' {
-		url = c.baseUrl + url
-	}
-
-	httpReq, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	newQs := httpReq.URL.Query()
-	for key, value := range req.Qs {
-		newQs[key] = value
-	}
-	httpReq.URL.RawQuery = newQs.Encode()
-
-	httpReq.Header.Set("Stripe-Version", stripeApiVersion)
-	for key, value := range req.Headers {
-		httpReq.Header[key] = value
-	}
-	httpReq.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.secret))
-
-	return httpReq, nil
-}
 
 func (c *clientImpl) get(ctx context.Context, req *Request, output interface{}) error {
-	httpReq, err := c.prepareRequest(req)
-	if err != nil {
-		ctx, _ := urlog.GetContextualLogger(ctx, nil, log.Fields{"request": req})
-		return urlog.WrapError(ctx, err, "failed to prepare request")
-	}
 
+	const resp_StatusCode  = 200
 	uv4, err := uuid.NewV4()
 	if err != nil {
 		return urlog.WrapError(ctx, err, "failed to generate uuid")
@@ -93,8 +63,8 @@ func (c *clientImpl) get(ctx context.Context, req *Request, output interface{}) 
 	ctx, logger := urlog.GetContextualLogger(ctx, nil, log.Fields{
 		"request": log.Fields{
 			"id":      uv4.String(),
-			"url":     httpReq.URL.String(),
-			"headers": httpReq.Header,
+			"url":     "helloworld:///",
+			"headers": "",
 		},
 	})
 
@@ -108,47 +78,44 @@ func (c *clientImpl) get(ctx context.Context, req *Request, output interface{}) 
 	if projectSlug != "" && workspaceSlug != "" {
 		metricTags = append(metricTags, fmt.Sprintf("project:%s/%s", workspaceSlug, projectSlug))
 	}
-	c.sourceClient.StatsIncrement("stripe.requests", 1, metricTags)
-	resp, err := c.httpClient.Do(httpReq)
-	c.sourceLogger.RequestSent(req.LogCollection, httpReq.URL.String(), sourcelogger.Metadata{"uuid": uv4.String()})
-	if err != nil {
-		return urlog.WrapError(ctx, err, "error performing request")
-	}
-	defer resp.Body.Close()
 
+	// Here's where we would make the HTTP request to the API
+	// Instead, we emulate the response back from the API
 	buffer := &bytes.Buffer{}
-	if _, err := buffer.ReadFrom(resp.Body); err != nil {
-		return urlog.WrapError(ctx, err, "error reading response")
-	}
+	buffer.WriteString("{ " +
+		"\"object:\": \"helloworld\", " +
+		"\"message\": \"Hello, World!\", " +
+		"\"has_more\": \"false\" " +
+		"}")
 
+	// Fake the response metrics
 	duration := time.Now().Sub(ts)
 	metricTags = append(metricTags,
-		fmt.Sprintf("status_code:%d", resp.StatusCode),
-		fmt.Sprintf("status_code_bucket:%dxx", resp.StatusCode/100),
+		fmt.Sprintf("status_code:%d", resp_StatusCode),
+		fmt.Sprintf("status_code_bucket:%dxx", resp_StatusCode/100),
 	)
-	c.sourceClient.StatsIncrement("stripe.responses", 1, metricTags)
-	c.sourceClient.StatsHistogram("stripe.response.payload_size", int64(buffer.Len()), metricTags)
-	c.sourceClient.StatsHistogram("stripe.response.latency", duration.Nanoseconds()/1000000, metricTags)
+	c.sourceClient.StatsIncrement("helloWorld.responses", 1, metricTags)
+	c.sourceClient.StatsHistogram("helloWorld.response.payload_size", int64(buffer.Len()), metricTags)
+	c.sourceClient.StatsHistogram("helloWorld.response.latency", duration.Nanoseconds()/1000000, metricTags)
 
 	headersBuffer := &bytes.Buffer{}
-	resp.Header.Write(headersBuffer)
 	logMetadata := sourcelogger.Metadata{
 		"uuid":    uv4.String(),
-		"status":  resp.Status,
+		"status":  resp_StatusCode,
 		"headers": headersBuffer.String(),
 	}
-	c.sourceLogger.ResponseReceived(req.LogCollection, httpReq.URL.String(), logMetadata, duration, buffer.String())
+	c.sourceLogger.ResponseReceived(req.LogCollection, "helloworld:///", logMetadata, duration, buffer.String())
 
 	ctx, logger = urlog.GetContextualLogger(ctx, logger, log.Fields{
 		"response": log.Fields{
-			"headers": resp.Header,
-			"status":  resp.Status,
+			"headers": "",
+			"status":  resp_StatusCode,
 			"body":    buffer.String(),
 		},
 	})
 	logger.Debug("http response")
 
-	if resp.StatusCode == 200 {
+	if resp_StatusCode == 200 {
 		decoder := json.NewDecoder(bytes.NewReader(buffer.Bytes()))
 		decoder.UseNumber()
 		if err := decoder.Decode(output); err != nil {
@@ -158,13 +125,13 @@ func (c *clientImpl) get(ctx context.Context, req *Request, output interface{}) 
 	}
 
 	err = urlog.WrapError(ctx, errors.New("unexpected response status code"), "")
-	if resp.StatusCode >= 500 || resp.StatusCode == 429 {
+	if resp_StatusCode >= 500 || resp_StatusCode == 429 {
 		// transient errors
 		return err
 	}
 
 	// non-transient errors
-	isAuthRelated := resp.StatusCode == 401
+	isAuthRelated := resp_StatusCode == 401
 	return &permanentError{
 		wrappedError:  err.(wrappedError),
 		isAuthRelated: isAuthRelated,
@@ -173,7 +140,7 @@ func (c *clientImpl) get(ctx context.Context, req *Request, output interface{}) 
 
 func NewClient(opts *ClientOptions) Client {
 	if opts.BaseUrl == "" {
-		opts.BaseUrl = "https://api.stripe.com"
+		opts.BaseUrl = "helloworld:///" //we don't need an API URL for Hello, World
 	}
 
 	return &clientImpl{
