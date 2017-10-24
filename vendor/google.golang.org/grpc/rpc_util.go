@@ -206,6 +206,7 @@ func FailFast(failFast bool) CallOption {
 }
 
 // MaxCallRecvMsgSize returns a CallOption which sets the maximum message size the client can receive.
+// Note that the maximum effective value is MaxUint32 due to protocol limitations.
 func MaxCallRecvMsgSize(s int) CallOption {
 	return beforeCall(func(o *callInfo) error {
 		o.maxReceiveMessageSize = &s
@@ -214,6 +215,7 @@ func MaxCallRecvMsgSize(s int) CallOption {
 }
 
 // MaxCallSendMsgSize returns a CallOption which sets the maximum message size the client can send.
+// Note that the maximum effective value is MaxUint32 due to protocol limitations.
 func MaxCallSendMsgSize(s int) CallOption {
 	return beforeCall(func(o *callInfo) error {
 		o.maxSendMessageSize = &s
@@ -439,19 +441,19 @@ func Errorf(c codes.Code, format string, a ...interface{}) error {
 	return status.Errorf(c, format, a...)
 }
 
-// SupportPackageIsVersion3 is referenced from generated protocol buffer files.
-// The latest support package version is 4.
-// SupportPackageIsVersion3 is kept for compatibility. It will be removed in the
-// next support package version update.
-const SupportPackageIsVersion3 = true
-
-// SupportPackageIsVersion4 is referenced from generated protocol buffer files
-// to assert that that code is compatible with this version of the grpc package.
+// The SupportPackageIsVersion variables are referenced from generated protocol
+// buffer files to ensure compatibility with the gRPC version used.  The latest
+// support package version is 5.
 //
-// This constant may be renamed in the future if a change in the generated code
-// requires a synchronised update of grpc-go and protoc-gen-go. This constant
-// should not be referenced from any other code.
-const SupportPackageIsVersion4 = true
+// Older versions are kept for compatibility. They may be removed if
+// compatibility cannot be maintained.
+//
+// These constants should not be referenced from any other code.
+const (
+	SupportPackageIsVersion3 = true
+	SupportPackageIsVersion4 = true
+	SupportPackageIsVersion5 = true
+)
 
 // Version is the current grpc version.
 const Version = "1.8.0-dev"
