@@ -1,21 +1,16 @@
 package main
 
 import (
-	"context"
 	"github.com/apex/log"
 	"github.com/apex/log/handlers/json"
-	"github.com/pkg/errors"
+	"github.com/segmentio/stats"
 	"github.com/segmentio/stats/datadog"
-	"github.com/segmentio/conf"
 	"github.com/segmentio/go-source"
-	"net/http"
 	"os"
-	"strings"
-	"time"
 	"github.com/segmentio/ecs-logs-go/log"
 	"github.com/segmentio/ecs-logs-go/apex"
-	"github.com/segmentio/stats"
 	stdlog "log"
+	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 
@@ -49,50 +44,33 @@ func setupLogging(cfg *config) {
 	})
 }
 
-func setupStats(cfg *config) {Program, stats.Discard, []stats.Tag{
-	{Name: "program", Value: Program},
-	stats.DefaultEngine = stats.NewEngine(
+func setupStats(cfg *config) {
+	stats.DefaultEngine = stats.NewEngine(Program, stats.Discard, []stats.Tag{
+		{Name: "program", Value: Program},
 		{Name: "version", Value: Version},
 	}...)
 	stats.Register(datadog.NewClient(cfg.DatadogAddr))
 }
 
+
 type config struct {
-	Secret          string
-	SetTransferId   bool
-	DisableAccounts bool
-	Rps             int
-	DatadogAddr     string
-	LogLevel        string
+	DatadogAddr string
+	LogLevel    string
+	BindAddr    string
+	Message 	string
+	CollectionName string
 }
 
 func parseConfig() *config {
-	rawCfg := struct {
-		Secret          string `conf:"secret"`
-		SetTransferId   string `conf:"set-transfer-id"`
-		DisableAccounts string `conf:"disable-accounts"`
-		Rps             int    `conf:"rps"`
-	}{Rps: 80}
-
-	conf.LoadWith(&rawCfg, conf.Loader{
-		Name:    Program,
-		Args:    os.Args[1:],
-		Sources: []conf.Source{conf.NewEnvSource("", os.Environ()...)},
-	})
-
-	setTransferId := strings.ToLower(rawCfg.SetTransferId)
-	disableAccounts := strings.ToLower(rawCfg.DisableAccounts)
-	return &config{
-		Secret:          rawCfg.Secret,
-		Rps:             rawCfg.Rps,
-		SetTransferId:   setTransferId == "1" || setTransferId == "yes" || setTransferId == "true",
-		DisableAccounts: disableAccounts == "1" || disableAccounts == "yes" || disableAccounts == "true",
-		DatadogAddr: "127.0.0.1:8125",
-		LogLevel: "INFO",
-	}
+	cfg := &config{}
+	kingpin.Flag("bind-addr", "Address and port to listen on").Default(":3000").StringVar(&cfg.BindAddr)
+	kingpin.Flag("datadog-addr", "Datadog statsd host and port").Default("127.0.0.1:8125").StringVar(&cfg.DatadogAddr)
+	kingpin.Flag("log-level", "Logging level").Default("INFO").StringVar(&cfg.LogLevel)
+	kingpin.Flag("message", "Message to Serve").Default("Hello, World").StringVar(&cfg.Message)
+	kingpin.Flag("collection", "Collection Name").Default("helloworld").StringVar(&cfg.CollectionName)
+	kingpin.Parse()
+	return cfg
 }
-
-
 
 func main() {
 	// Basic Setup
@@ -112,82 +90,10 @@ func main() {
 		log.WithError(err).Fatal("keepalive call failed")
 	}
 
-	// initialize api client
-	apiClient := api.NewClient(&api.ClientOptions{
-		Secret:       cfg.Secret,
-		BaseUrl:      "helloworld", //TODO: We don't need an API client yet, but we will
-		HttpClient:   &http.Client{Timeout: time.Minute * 5},
-		MaxRps:       cfg.Rps,
-		SourceClient: sourceClient,
-	})
+	var properties map[string]interface{}
+	properties = make(map[string]interface{})
+	properties["message"] = cfg.Message
 
-	if cfg.Secret == "" {
-		errorMsg := "Invalid credentials (no credentials found)"
-		log.Error(errorMsg)
-		sourceClient.Log().Error("", "authentication", errors.New(errorMsg))
-		sourceClient.ReportError(errorMsg, "")
-		return
-	}
+	sourceClient.Set(cfg.CollectionName, "1", properties)
 
-	// TODO: API test
-
-	// run dispatcher
-	d := initDispatcher(apiClient, sourceClient, cfg)
-	if err := d.Run(); err != nil {
-		log.WithError(err).Fatal("Run failed")
-	}
-
-	d.Close()
-
-}
-
-func initDispatcher(apiClient api.Client, sourceClient source.Client, cfg *config) *integration.Dispatcher {
-	d := integration.NewDispatcher(sourceClient)
-
-	if !cfg.DisableAccounts {
-		d.Register(resource.NewAccount(apiClient))
-	}
-
-	d.Register(bundle.New(apiClient,
-		resource.NewTransfer(apiClient, cfg.SetTransferId),
-		resource.NewTransferReversal(apiClient),
-	))
-
-	d.Register(bundle.New(apiClient,
-		resource.NewCharge(apiClient),
-		resource.NewRefund(apiClient),
-		resource.NewCard(apiClient),
-		resource.NewBankAccount(apiClient),
-	))
-
-	d.Register(bundle.New(apiClient,
-		resource.NewSubscription(apiClient),
-		resource.NewSubscriptionItem(apiClient),
-		resource.NewPlan(apiClient),
-		resource.NewInvoice(apiClient),
-		resource.NewInvoiceLine(apiClient),
-		resource.NewDiscount(apiClient),
-		resource.NewCoupon(apiClient),
-	))
-
-	d.Register(bundle.New(apiClient,
-		resource.NewOrder(apiClient),
-		resource.NewOrderShippingMethod(apiClient),
-	))
-
-	d.Register(bundle.New(apiClient,
-		resource.NewApplicationFee(apiClient),
-		resource.NewApplicationFeeRefund(apiClient),
-	))
-
-	d.Register(resource.NewBalanceTransaction(apiClient, cfg.SetTransferId))
-	d.Register(resource.NewBalanceTransactionFeeDetail(apiClient))
-	d.Register(resource.NewCustomer(apiClient))
-	d.Register(resource.NewInvoiceItem(apiClient))
-	d.Register(resource.NewDispute(apiClient))
-	d.Register(resource.NewProduct(apiClient))
-	d.Register(resource.NewSku(apiClient))
-	d.Register(resource.NewOrderReturn(apiClient))
-
-	return d
 }
